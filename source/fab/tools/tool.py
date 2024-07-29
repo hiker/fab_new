@@ -121,7 +121,7 @@ class Tool:
         ''':returns: the flags to be used with this tool.'''
         return self._flags
 
-    def add_flags(self, new_flags: Union[str, list[str]]):
+    def add_flags(self, new_flags: Union[str, List[str]]):
         '''Adds the specified flags to the list of flags.
         :param new_flags: A single string or list of strings which are the
             flags to be added.

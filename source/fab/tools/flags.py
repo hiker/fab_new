@@ -38,7 +38,7 @@ class Flags(list):
         """
         return string_checksum(str(self))
 
-    def add_flags(self, new_flags: Union[str, list[str]]):
+    def add_flags(self, new_flags: Union[str, List[str]]):
         '''Adds the specified flags to the list of flags.
         :param new_flags: A single string or list of strings which are the
             flags to be added.
