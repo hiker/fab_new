@@ -106,6 +106,13 @@ class Tool:
         ''':returns: the flags to be used with this tool.'''
         return self._flags
 
+    def add_flags(self, new_flags: Union[str, list[str]]):
+        '''Adds the specified flags to the list of flags.
+        :param new_flags: A single string or list of strings which are the
+            flags to be added.
+        '''
+        self._flags.add_flags(new_flags)
+
     @property
     def logger(self) -> logging.Logger:
         ''':returns: a logger object for convenience.'''

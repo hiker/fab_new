@@ -66,6 +66,15 @@ def test_tool_is_available():
     assert ("Tool 'gfortran' is not available to run '['gfortran', '--ops']'"
             in str(err.value))
 
+def test_tool_flags():
+    '''Test that flags work as expected'''
+    tool = Tool("gfortran", "gfortran", Category.FORTRAN_COMPILER)
+    assert tool.flags == []
+    tool.add_flags("-a")
+    assert tool.flags == ["-a"]
+    tool.add_flags(["-b", "-c"])
+    assert tool.flags == ["-a", "-b", "-c"]
+
 
 class TestToolRun:
     '''Test the run method of Tool.'''
