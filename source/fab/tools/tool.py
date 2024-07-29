@@ -91,10 +91,25 @@ class Tool:
         ''':returns: the name of the executable.'''
         return self._exec_name
 
+    def change_exec_name(self, exec_name: str):
+        '''Changes the name of the executable This function should in general
+        not be used (typically it is better to create a new tool instead). The
+        function is only provided to support CompilerWrapper (like mpif90),
+        which need all parameters from the original compiler, but call the
+        wrapper. The name of the compiler will be changed just before
+        compilation, and then set back to its original value
+        '''
+        self._exec_name = exec_name
+
     @property
     def name(self) -> str:
         ''':returns: the name of the tool.'''
         return self._name
+
+    @property
+    def availablility_option(self) -> str:
+        ''':returns: the option to use to check if the tool is available.'''
+        return self._availability_option
 
     @property
     def category(self) -> Category:
@@ -188,13 +203,16 @@ class CompilerSuiteTool(Tool):
     :param exec_name: name of the executable to start.
     :param suite: name of the compiler suite.
     :param category: the Category to which this tool belongs.
-    :param mpi: whether the compiler or linker support MPI.
+    :param availability_option: a command line option for the tool to test
+        if the tool is available on the current system. Defaults to
+        `--version`.
     '''
     def __init__(self, name: str, exec_name: Union[str, Path], suite: str,
-                 category: Category, mpi: bool = False):
-        super().__init__(name, exec_name, category)
+                 category: Category,
+                 availablility_option: Optional[str] = None):
+        super().__init__(name, exec_name, category,
+                         availablility_option=availablility_option)
         self._suite = suite
-        self._mpi = mpi
 
     @property
     def suite(self) -> str:
@@ -204,4 +222,4 @@ class CompilerSuiteTool(Tool):
     @property
     def mpi(self) -> bool:
         ''':returns: whether this tool supports MPI or not.'''
-        return self._mpi
+        return False

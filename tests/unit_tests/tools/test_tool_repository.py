@@ -76,6 +76,7 @@ def test_tool_repository_get_default():
 
 def test_tool_repository_get_default_error():
     '''Tests error handling in get_default.'''
+
     tr = ToolRepository()
     with pytest.raises(RuntimeError) as err:
         tr.get_default("unknown-category")

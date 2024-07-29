@@ -15,8 +15,7 @@ from unittest import mock
 import pytest
 
 from fab.tools import (Category, CCompiler, Compiler, FortranCompiler,
-                       Gcc, Gfortran, Icc, Ifort, MpiGcc, MpiGfortran,
-                       MpiIcc, MpiIfort)
+                       Gcc, Gfortran, Icc, Ifort)
 
 
 def test_compiler():
@@ -25,6 +24,7 @@ def test_compiler():
     assert cc.category == Category.C_COMPILER
     assert cc._compile_flag == "-c"
     assert cc._output_flag == "-o"
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert cc.flags == []
     assert cc.suite == "gnu"
     assert not cc.mpi
@@ -36,6 +36,7 @@ def test_compiler():
     assert fc._output_flag == "-o"
     assert fc.category == Category.FORTRAN_COMPILER
     assert fc.suite == "gnu"
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert fc.flags == []
     assert not fc.mpi
     assert fc.openmp_flag == "-fopenmp"
@@ -321,15 +322,6 @@ def test_gcc():
     assert not gcc.mpi
 
 
-def test_mpi_gcc():
-    '''Tests the MPI enables gcc class.'''
-    mpi_gcc = MpiGcc()
-    assert mpi_gcc.name == "mpicc-gcc"
-    assert isinstance(mpi_gcc, CCompiler)
-    assert mpi_gcc.category == Category.C_COMPILER
-    assert mpi_gcc.mpi
-
-
 def test_gfortran():
     '''Tests the gfortran class.'''
     gfortran = Gfortran()
@@ -337,15 +329,6 @@ def test_gfortran():
     assert isinstance(gfortran, FortranCompiler)
     assert gfortran.category == Category.FORTRAN_COMPILER
     assert not gfortran.mpi
-
-
-def test_mpi_gfortran():
-    '''Tests the MPI enabled gfortran class.'''
-    mpi_gfortran = MpiGfortran()
-    assert mpi_gfortran.name == "mpif90-gfortran"
-    assert isinstance(mpi_gfortran, FortranCompiler)
-    assert mpi_gfortran.category == Category.FORTRAN_COMPILER
-    assert mpi_gfortran.mpi
 
 
 def test_icc():
@@ -357,15 +340,6 @@ def test_icc():
     assert not icc.mpi
 
 
-def test_mpi_icc():
-    '''Tests the MPI enabled icc class.'''
-    mpi_icc = MpiIcc()
-    assert mpi_icc.name == "mpicc-icc"
-    assert isinstance(mpi_icc, CCompiler)
-    assert mpi_icc.category == Category.C_COMPILER
-    assert mpi_icc.mpi
-
-
 def test_ifort():
     '''Tests the ifort class.'''
     ifort = Ifort()
@@ -373,32 +347,3 @@ def test_ifort():
     assert isinstance(ifort, FortranCompiler)
     assert ifort.category == Category.FORTRAN_COMPILER
     assert not ifort.mpi
-
-
-def test_mpi_ifort():
-    '''Tests the MPI enabled ifort class.'''
-    mpi_ifort = MpiIfort()
-    assert mpi_ifort.name == "mpif90-ifort"
-    assert isinstance(mpi_ifort, FortranCompiler)
-    assert mpi_ifort.category == Category.FORTRAN_COMPILER
-    assert mpi_ifort.mpi
-
-
-def test_compiler_wrapper():
-    '''Make sure we can easily create a compiler wrapper.'''
-    class MpiF90(Ifort):
-        '''A simple compiler wrapper'''
-        def __init__(self):
-            super().__init__(name="mpif90-intel",
-                             exec_name="mpif90")
-
-        @property
-        def mpi(self):
-            return True
-
-    mpif90 = MpiF90()
-    assert mpif90.suite == "intel-classic"
-    assert mpif90.category == Category.FORTRAN_COMPILER
-    assert mpif90.name == "mpif90-intel"
-    assert mpif90.exec_name == "mpif90"
-    assert mpif90.mpi
