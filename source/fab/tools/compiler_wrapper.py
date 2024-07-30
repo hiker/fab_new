@@ -26,15 +26,18 @@ class CompilerWrapper(Compiler):
     :param name: name of the wrapper.
     :param exec_name: name of the executable to call.
     :param compiler: the compiler that is decorated.
+    :param mpi: whether MPI is supported by this compiler or not.
     '''
 
     def __init__(self, name: str, exec_name: str,
-                 compiler: Compiler):
+                 compiler: Compiler,
+                 mpi: bool = False):
         self._compiler = compiler
         super().__init__(
             name=name, exec_name=exec_name,
             category=self._compiler.category,
             suite=self._compiler.suite,
+            mpi=mpi,
             availablility_option=self._compiler.availablility_option)
 
     def __str__(self):
@@ -90,11 +93,6 @@ class CompilerWrapper(Compiler):
         return self._compiler.suite
 
     @property
-    def mpi(self) -> bool:
-        ''':returns: whether this tool supports MPI or not.'''
-        return False
-
-    @property
     def has_syntax_only(self) -> bool:
         ''':returns: whether this compiler supports a syntax-only feature.
 
@@ -105,7 +103,7 @@ class CompilerWrapper(Compiler):
         if self._compiler.category == Category.FORTRAN_COMPILER:
             return cast(FortranCompiler, self._compiler).has_syntax_only
 
-        raise RuntimeError(f"Compiler '{self._compiler}' has "
+        raise RuntimeError(f"Compiler '{self._compiler.name}' has "
                            f"no has_syntax_only.")
 
     def set_module_output_path(self, path: Path):
@@ -118,7 +116,7 @@ class CompilerWrapper(Compiler):
         '''
 
         if self._compiler.category != Category.FORTRAN_COMPILER:
-            raise RuntimeError(f"Compiler '{self._compiler}' has no"
+            raise RuntimeError(f"Compiler '{self._compiler.name}' has no "
                                f"'set_module_output_path' function.")
         cast(FortranCompiler, self._compiler).set_module_output_path(path)
 
@@ -166,11 +164,7 @@ class Mpif90(CompilerWrapper):
 
     def __init__(self, compiler: Compiler):
         super().__init__(name=f"mpif90-{compiler.name}",
-                         exec_name="mpif90", compiler=compiler)
-
-    @property
-    def mpi(self) -> bool:
-        return True
+                         exec_name="mpif90", compiler=compiler, mpi=True)
 
 
 # ============================================================================
@@ -185,8 +179,4 @@ s
 
     def __init__(self, compiler: Compiler):
         super().__init__(name=f"mpicc-{compiler.name}",
-                         exec_name="mpicc", compiler=compiler)
-
-    @property
-    def mpi(self) -> bool:
-        return True
+                         exec_name="mpicc", compiler=compiler, mpi=True)

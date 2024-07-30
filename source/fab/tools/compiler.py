@@ -32,6 +32,7 @@ class Compiler(CompilerSuiteTool):
     :param category: the Category (C_COMPILER or FORTRAN_COMPILER).
     :param compile_flag: the compilation flag to use when only requesting
         compilation (not linking).
+    :param mpi: whether MPI is supported by this compiler or not.
     :param output_flag: the compilation flag to use to indicate the name
         of the output file
     :param openmp_flag: the flag to use to enable OpenMP
@@ -45,16 +46,23 @@ class Compiler(CompilerSuiteTool):
                  exec_name: Union[str, Path],
                  suite: str,
                  category: Category,
+                 mpi: bool = False,
                  compile_flag: Optional[str] = None,
                  output_flag: Optional[str] = None,
                  openmp_flag: Optional[str] = None,
                  availablility_option: Optional[str] = None):
         super().__init__(name, exec_name, suite, category=category)
         self._version = None
+        self._mpi = mpi
         self._compile_flag = compile_flag if compile_flag else "-c"
         self._output_flag = output_flag if output_flag else "-o"
         self._openmp_flag = openmp_flag if openmp_flag else ""
         self.flags.extend(os.getenv("FFLAGS", "").split())
+
+    @property
+    def mpi(self) -> bool:
+        '''Returns whether this compiler supports MPI or not.'''
+        return self._mpi
 
     def get_hash(self) -> int:
         ''':returns: a hash based on the compiler name and version.
@@ -184,7 +192,7 @@ class CCompiler(Compiler):
     :param name: name of the compiler.
     :param exec_name: name of the executable to start.
     :param suite: name of the compiler suite.
-    :param category: the Category (C_COMPILER or FORTRAN_COMPILER).
+    :param mpi: whether MPI is supported by this compiler or not.
     :param compile_flag: the compilation flag to use when only requesting
         compilation (not linking).
     :param output_flag: the compilation flag to use to indicate the name
@@ -194,11 +202,11 @@ class CCompiler(Compiler):
 
     # pylint: disable=too-many-arguments
     def __init__(self, name: str, exec_name: str, suite: str,
-                 compile_flag=None, output_flag=None,
+                 mpi=False, compile_flag=None, output_flag=None,
                  openmp_flag: Optional[str] = None):
         super().__init__(name, exec_name, suite, Category.C_COMPILER,
-                         compile_flag=compile_flag, output_flag=output_flag,
-                         openmp_flag=openmp_flag)
+                         mpi=mpi, compile_flag=compile_flag,
+                         output_flag=output_flag, openmp_flag=openmp_flag)
 
 
 # ============================================================================
@@ -210,6 +218,7 @@ class FortranCompiler(Compiler):
     :param name: name of the compiler.
     :param exec_name: name of the executable to start.
     :param suite: name of the compiler suite.
+    :param mpi: whether MPI is supported by this compiler or not.
     :param module_folder_flag: the compiler flag to indicate where to
         store created module files.
     :param openmp_flag: the flag to use to enable OpenMP
@@ -223,7 +232,8 @@ class FortranCompiler(Compiler):
 
     # pylint: disable=too-many-arguments
     def __init__(self, name: str, exec_name: str, suite: str,
-                 module_folder_flag: str,
+                 mpi: bool = False,
+                 module_folder_flag: Optional[str] = None,
                  openmp_flag: Optional[str] = None,
                  syntax_only_flag: Optional[str] = None,
                  compile_flag: Optional[str] = None,
@@ -231,6 +241,7 @@ class FortranCompiler(Compiler):
 
         super().__init__(name=name, exec_name=exec_name, suite=suite,
                          category=Category.FORTRAN_COMPILER,
+                         mpi=mpi,
                          compile_flag=compile_flag,
                          output_flag=output_flag, openmp_flag=openmp_flag)
         self._module_folder_flag = module_folder_flag
@@ -267,7 +278,9 @@ class FortranCompiler(Compiler):
         params: List[str] = []
         if add_flags:
             new_flags = Flags(add_flags)
-            new_flags.remove_flag(self._module_folder_flag, has_parameter=True)
+            if self._module_folder_flag:
+                new_flags.remove_flag(self._module_folder_flag,
+                                      has_parameter=True)
             new_flags.remove_flag(self._compile_flag, has_parameter=False)
             params += new_flags
 

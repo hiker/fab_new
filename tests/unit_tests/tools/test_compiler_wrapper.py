@@ -12,9 +12,9 @@ from unittest import mock
 
 import pytest
 
-from fab.tools import (Category, CCompiler, FortranCompiler,
+from fab.tools import (Category, CCompiler,
                        Gcc, Gfortran, Icc, Ifort,
-                       CompilerWrapper, Mpicc, Mpif90)
+                       CompilerWrapper, Mpicc, Mpif90, ToolRepository)
 
 
 def test_compiler_check_available():
@@ -50,72 +50,54 @@ def test_compiler_hash():
     assert hash3 not in (hash1, hash2)
 
 
-def test_compiler_syntax_only():
-    '''Tests handling of syntax only flags.'''
-    fc = FortranCompiler("gfortran", "gfortran", "gnu",
-                         openmp_flag="-fopenmp", module_folder_flag="-J")
-    assert not fc.has_syntax_only
-    fc = FortranCompiler("gfortran", "gfortran", "gnu", openmp_flag="-fopenmp",
-                         module_folder_flag="-J", syntax_only_flag=None)
-    assert not fc.has_syntax_only
-    # Empty since no flag is defined
-    assert fc.openmp_flag == "-fopenmp"
+def test_compiler_wrapper_syntax_only():
+    '''Tests handling of syntax only flags in wrapper. In case of testing
+    syntax only for a C compiler an exception must be raised.'''
+    mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
+                                       "mpif90-gfortran")
+    assert mpif90.has_syntax_only
 
-    fc = FortranCompiler("gfortran", "gfortran", "gnu",
-                         openmp_flag="-fopenmp",
-                         module_folder_flag="-J",
-                         syntax_only_flag="-fsyntax-only")
-    fc.set_module_output_path("/tmp")
-    assert fc.has_syntax_only
-    assert fc._syntax_only_flag == "-fsyntax-only"
-    fc.run = mock.Mock()
-    fc.compile_file(Path("a.f90"), "a.o", openmp=False, syntax_only=True)
-    fc.run.assert_called_with(cwd=Path('.'),
-                              additional_parameters=['-c', '-fsyntax-only',
-                                                     "-J", '/tmp', 'a.f90',
-                                                     '-o', 'a.o', ])
-    fc.compile_file(Path("a.f90"), "a.o", openmp=True, syntax_only=True)
-    fc.run.assert_called_with(cwd=Path('.'),
-                              additional_parameters=['-c', '-fopenmp', '-fsyntax-only',
-                                                     "-J", '/tmp', 'a.f90',
-                                                     '-o', 'a.o', ])
+    mpicc = ToolRepository().get_tool(Category.C_COMPILER, "mpicc-gcc")
+    with pytest.raises(RuntimeError) as err:
+        _ = mpicc.has_syntax_only
+    assert "'gcc' has no has_syntax_only" in str(err.value)
 
 
 def test_compiler_module_output():
-    '''Tests handling of module output_flags.'''
-    fc = FortranCompiler("gfortran", "gfortran", suite="gnu",
-                         module_folder_flag="-J")
-    fc.set_module_output_path("/module_out")
-    assert fc._module_output_path == "/module_out"
-    fc.run = mock.MagicMock()
-    fc.compile_file(Path("a.f90"), "a.o", openmp=False, syntax_only=True)
-    fc.run.assert_called_with(cwd=PosixPath('.'),
-                              additional_parameters=['-c', '-J', '/module_out',
-                                                     'a.f90', '-o', 'a.o'])
+    '''Tests handling of module output_flags in wrapper. In case of testing
+    this with a C compiler, an exception must be raised.'''
+    mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
+                                       "mpif90-gfortran")
+    mpif90.set_module_output_path("/somewhere")
+    assert mpif90._compiler._module_output_path == "/somewhere"
+
+    mpicc = ToolRepository().get_tool(Category.C_COMPILER, "mpicc-gcc")
+    with pytest.raises(RuntimeError) as err:
+        mpicc.set_module_output_path("/tmp")
+    assert "'gcc' has no 'set_module_output_path' function" in str(err.value)
 
 
 def test_compiler_with_add_args():
     '''Tests that additional arguments are handled as expected.'''
-    fc = FortranCompiler("gfortran", "gfortran", suite="gnu",
-                         openmp_flag="-fopenmp",
-                         module_folder_flag="-J")
-    fc.set_module_output_path("/module_out")
-    assert fc._module_output_path == "/module_out"
-    fc.run = mock.MagicMock()
+    mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
+                                       "mpif90-gfortran")
+    mpif90.set_module_output_path("/module_out")
+    mpif90._compiler.run = mock.MagicMock()
     with pytest.warns(UserWarning, match="Removing managed flag"):
-        fc.compile_file(Path("a.f90"), "a.o", add_flags=["-J/b", "-O3"],
-                        openmp=False, syntax_only=True)
+        mpif90.compile_file(Path("a.f90"), "a.o", add_flags=["-J/b", "-O3"],
+                            openmp=False, syntax_only=True)
     # Notice that "-J/b" has been removed
-    fc.run.assert_called_with(cwd=PosixPath('.'),
-                              additional_parameters=['-c', "-O3",
-                                                     '-J', '/module_out',
-                                                     'a.f90', '-o', 'a.o'])
+    mpif90._compiler.run.assert_called_with(
+        cwd=PosixPath('.'), additional_parameters=['-c', "-O3",
+                                                   '-fsyntax-only',
+                                                   '-J', '/module_out',
+                                                   'a.f90', '-o', 'a.o'])
     with pytest.warns(UserWarning,
                       match="explicitly provided. OpenMP should be enabled in "
                             "the BuildConfiguration"):
-        fc.compile_file(Path("a.f90"), "a.o",
-                        add_flags=["-fopenmp", "-O3"],
-                        openmp=True, syntax_only=True)
+        mpif90.compile_file(Path("a.f90"), "a.o",
+                            add_flags=["-fopenmp", "-O3"],
+                            openmp=True, syntax_only=True)
 
 
 def test_flags():
