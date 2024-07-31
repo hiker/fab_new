@@ -96,7 +96,6 @@ class Compiler(CompilerSuiteTool):
         if openmp:
             params.append(self.openmp_flag)
         if add_flags:
-            print("XX", self.openmp_flag, add_flags)
             if self.openmp_flag in add_flags:
                 warnings.warn(
                     f"OpenMP flag '{self.openmp_flag}' explicitly provided. "
