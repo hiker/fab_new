@@ -34,20 +34,21 @@ def test_compiler_check_available():
 
 def test_compiler_hash():
     '''Test the hash functionality.'''
-    cc = CCompiler("gcc", "gcc", "gnu")
-    with mock.patch.object(cc, "_version", 567):
-        hash1 = cc.get_hash()
-        assert hash1 == 4646426180
+    mpicc = ToolRepository().get_tool(Category.C_COMPILER,
+                                      "mpicc-gcc")
+    with mock.patch.object(mpicc, "_version", 567):
+        hash1 = mpicc.get_hash()
+        assert hash1 == 4702012005
 
     # A change in the version number must change the hash:
-    with mock.patch.object(cc, "_version", 89):
-        hash2 = cc.get_hash()
+    with mock.patch.object(mpicc, "_version", 89):
+        hash2 = mpicc.get_hash()
         assert hash2 != hash1
 
     # A change in the name must change the hash, again:
-    cc._name = "new_name"
-    hash3 = cc.get_hash()
-    assert hash3 not in (hash1, hash2)
+    with mock.patch.object(mpicc, "_name", "new_name"):
+        hash3 = mpicc.get_hash()
+        assert hash3 not in (hash1, hash2)
 
 
 def test_compiler_wrapper_syntax_only():
@@ -77,7 +78,7 @@ def test_compiler_module_output():
     assert "'gcc' has no 'set_module_output_path' function" in str(err.value)
 
 
-def test_compiler_with_add_args():
+def test_compiler_fortran_with_add_args():
     '''Tests that additional arguments are handled as expected.'''
     mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
                                        "mpif90-gfortran")
@@ -100,11 +101,32 @@ def test_compiler_with_add_args():
                             openmp=True, syntax_only=True)
 
 
+def test_compiler_c_with_add_args():
+    '''Tests that additional arguments are handled as expected.'''
+    mpicc = ToolRepository().get_tool(Category.C_COMPILER,
+                                      "mpicc-gcc")
+    mpicc._compiler.run = mock.MagicMock()
+    mpicc.compile_file(Path("a.f90"), "a.o", openmp=False, add_flags=["-O3"],
+                       syntax_only=True)
+    # Notice that "-J/b" has been removed
+    mpicc._compiler.run.assert_called_with(
+        cwd=PosixPath('.'), additional_parameters=['-c', "-O3",
+                                                   'a.f90', '-o', 'a.o'])
+    with pytest.warns(UserWarning,
+                      match="explicitly provided. OpenMP should be enabled in "
+                            "the BuildConfiguration"):
+        print("2")
+        mpicc.compile_file(Path("a.f90"), "a.o",
+                           add_flags=["-fopenmp", "-O3"],
+                           openmp=True, syntax_only=True)
+
+
 def test_flags():
     '''Tests that flags set in the base compiler will be accessed in the
     wrapper.'''
     gcc = Gcc()
     mpicc = Mpicc(gcc)
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert gcc.flags == []
     assert mpicc.flags == []
     # Setting flags in gcc must become visible in the wrapper compiler:

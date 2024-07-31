@@ -64,6 +64,11 @@ class Compiler(CompilerSuiteTool):
         '''Returns whether this compiler supports MPI or not.'''
         return self._mpi
 
+    @property
+    def openmp_flag(self) -> bool:
+        '''Returns the flag to enable OpenMP.'''
+        return self._openmp_flag
+
     def get_hash(self) -> int:
         ''':returns: a hash based on the compiler name and version.
         '''
@@ -95,11 +100,12 @@ class Compiler(CompilerSuiteTool):
 
         params: List[Union[Path, str]] = [self._compile_flag]
         if openmp:
-            params.append(self._openmp_flag)
+            params.append(self.openmp_flag)
         if add_flags:
-            if self._openmp_flag in add_flags:
+            print("XX", self.openmp_flag, add_flags)
+            if self.openmp_flag in add_flags:
                 warnings.warn(
-                    f"OpenMP flag '{self._openmp_flag}' explicitly provided. "
+                    f"OpenMP flag '{self.openmp_flag}' explicitly provided. "
                     f"OpenMP should be enabled in the BuildConfiguration "
                     f"instead.")
             params += add_flags
