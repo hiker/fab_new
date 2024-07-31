@@ -83,19 +83,20 @@ def test_compiler_fortran_with_add_args():
     mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
                                        "mpif90-gfortran")
     mpif90.set_module_output_path("/module_out")
-    mpif90._compiler.run = mock.MagicMock()
-    with pytest.warns(UserWarning, match="Removing managed flag"):
+    with (mock.patch.object(mpif90._compiler, "run", mock.MagicMock()),
+          pytest.warns(UserWarning, match="Removing managed flag")):
         mpif90.compile_file(Path("a.f90"), "a.o", add_flags=["-J/b", "-O3"],
                             openmp=False, syntax_only=True)
-    # Notice that "-J/b" has been removed
-    mpif90._compiler.run.assert_called_with(
-        cwd=PosixPath('.'), additional_parameters=['-c', "-O3",
-                                                   '-fsyntax-only',
-                                                   '-J', '/module_out',
-                                                   'a.f90', '-o', 'a.o'])
-    with pytest.warns(UserWarning,
-                      match="explicitly provided. OpenMP should be enabled in "
-                            "the BuildConfiguration"):
+        # Notice that "-J/b" has been removed
+        mpif90._compiler.run.assert_called_with(
+            cwd=PosixPath('.'), additional_parameters=['-c', "-O3",
+                                                       '-fsyntax-only',
+                                                       '-J', '/module_out',
+                                                       'a.f90', '-o', 'a.o'])
+    with (mock.patch.object(mpif90._compiler, "run", mock.MagicMock()),
+          pytest.warns(UserWarning,
+                       match="explicitly provided. OpenMP should be enabled "
+                             "in the BuildConfiguration")):
         mpif90.compile_file(Path("a.f90"), "a.o",
                             add_flags=["-fopenmp", "-O3"],
                             openmp=True, syntax_only=True)
