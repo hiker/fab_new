@@ -65,7 +65,7 @@ class Compiler(CompilerSuiteTool):
         return self._mpi
 
     @property
-    def openmp_flag(self) -> bool:
+    def openmp_flag(self) -> str:
         '''Returns the flag to enable OpenMP.'''
         return self._openmp_flag
 
@@ -74,12 +74,6 @@ class Compiler(CompilerSuiteTool):
         '''
         return (zlib.crc32(self.name.encode()) +
                 zlib.crc32(str(self.get_version()).encode()))
-
-    @property
-    def openmp_flag(self) -> str:
-        ''':returns: The flag to enable OpenMP for this compiler.
-        '''
-        return self._openmp_flag
 
     def compile_file(self, input_file: Path,
                      output_file: Path,
