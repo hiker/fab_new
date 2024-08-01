@@ -73,11 +73,11 @@ def test_compiler_is_available_ok():
     assert isinstance(mpicc, CompilerWrapper)
 
     # Make sure that the compiler-wrapper itself reports that it is available:
-    with (mock.patch('fab.tools.compiler.Compiler.is_available',
-                     return_value=True),
-          mock.patch('fab.tools.compiler.Compiler.get_version',
-                     return_value="123")):
-        assert mpicc.is_available
+    with mock.patch('fab.tools.compiler.Compiler.is_available',
+                    return_value=True):
+        with mock.patch('fab.tools.compiler.Compiler.get_version',
+                        return_value="123"):
+            assert mpicc.is_available
 
     # Test that the value is cached:
     assert mpicc.is_available
@@ -109,17 +109,17 @@ def test_compiler_hash():
 
     # A change in the name with the original version number
     # 567) must change the hash again:
-    with (mock.patch.object(mpicc, "_name", "new_name"),
-          mock.patch.object(mpicc, "_version", 567)):
-        hash3 = mpicc.get_hash()
-        assert hash3 not in (hash1, hash2)
+    with mock.patch.object(mpicc, "_name", "new_name"):
+        with mock.patch.object(mpicc, "_version", 567):
+            hash3 = mpicc.get_hash()
+            assert hash3 not in (hash1, hash2)
 
     # A change in the name with the modified version number
     # must change the hash again:
-    with (mock.patch.object(mpicc, "_name", "new_name"),
-          mock.patch.object(mpicc, "_version", 89)):
-        hash4 = mpicc.get_hash()
-        assert hash4 not in (hash1, hash2, hash3)
+    with mock.patch.object(mpicc, "_name", "new_name"):
+        with mock.patch.object(mpicc, "_version", 89):
+            hash4 = mpicc.get_hash()
+            assert hash4 not in (hash1, hash2, hash3)
 
 
 def test_compiler_wrapper_syntax_only():
@@ -154,29 +154,29 @@ def test_compiler_fortran_with_add_args():
     mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
                                        "mpif90-gfortran")
     mpif90.set_module_output_path("/module_out")
-    with (mock.patch.object(mpif90._compiler, "run", mock.MagicMock()),
-          pytest.warns(UserWarning, match="Removing managed flag")):
-        mpif90.compile_file(Path("a.f90"), "a.o", add_flags=["-J/b", "-O3"],
-                            openmp=False, syntax_only=True)
+    with mock.patch.object(mpif90._compiler, "run", mock.MagicMock()):
+        with pytest.warns(UserWarning, match="Removing managed flag"):
+            mpif90.compile_file(Path("a.f90"), "a.o",
+                                add_flags=["-J/b", "-O3"], openmp=False,
+                                syntax_only=True)
         # Notice that "-J/b" has been removed
         mpif90._compiler.run.assert_called_with(
             cwd=PosixPath('.'), additional_parameters=['-c', "-O3",
                                                        '-fsyntax-only',
                                                        '-J', '/module_out',
                                                        'a.f90', '-o', 'a.o'])
-    with (mock.patch.object(mpif90._compiler, "run", mock.MagicMock()),
-          pytest.warns(UserWarning,
-                       match="explicitly provided. OpenMP should be enabled "
-                             "in the BuildConfiguration")):
-        mpif90.compile_file(Path("a.f90"), "a.o",
-                            add_flags=["-fopenmp", "-O3"],
-                            openmp=True, syntax_only=True)
-        mpif90._compiler.run.assert_called_with(
-            cwd=PosixPath('.'), additional_parameters=['-c', '-fopenmp',
-                                                       '-fopenmp', '-O3',
-                                                       '-fsyntax-only',
-                                                       '-J', '/module_out',
-                                                       'a.f90', '-o', 'a.o'])
+    with mock.patch.object(mpif90._compiler, "run", mock.MagicMock()):
+        with pytest.warns(UserWarning,
+                          match="explicitly provided. OpenMP should be "
+                                "enabled in the BuildConfiguration"):
+            mpif90.compile_file(Path("a.f90"), "a.o",
+                                add_flags=["-fopenmp", "-O3"],
+                                openmp=True, syntax_only=True)
+            mpif90._compiler.run.assert_called_with(
+                cwd=PosixPath('.'),
+                additional_parameters=['-c', '-fopenmp', '-fopenmp', '-O3',
+                                       '-fsyntax-only', '-J', '/module_out',
+                                       'a.f90', '-o', 'a.o'])
 
 
 def test_compiler_c_with_add_args():
@@ -204,17 +204,17 @@ def test_compiler_c_with_add_args():
             in str(err.value))
 
     # Check that providing the openmp flag in add_flag raises a warning:
-    with (mock.patch.object(mpicc._compiler, "run", mock.MagicMock()),
-          pytest.warns(UserWarning,
-                       match="explicitly provided. OpenMP should be enabled "
-                             "in the BuildConfiguration")):
-        mpicc.compile_file(Path("a.f90"), "a.o",
-                           add_flags=["-fopenmp", "-O3"],
-                           openmp=True)
-        mpicc._compiler.run.assert_called_with(
-            cwd=PosixPath('.'), additional_parameters=['-c', '-fopenmp',
-                                                       '-fopenmp', '-O3',
-                                                       'a.f90', '-o', 'a.o'])
+    with mock.patch.object(mpicc._compiler, "run", mock.MagicMock()):
+        with pytest.warns(UserWarning,
+                          match="explicitly provided. OpenMP should be "
+                                "enabled in the BuildConfiguration"):
+            mpicc.compile_file(Path("a.f90"), "a.o",
+                               add_flags=["-fopenmp", "-O3"],
+                               openmp=True)
+            mpicc._compiler.run.assert_called_with(
+                cwd=PosixPath('.'),
+                additional_parameters=['-c', '-fopenmp', '-fopenmp', '-O3',
+                                       'a.f90', '-o', 'a.o'])
 
 
 def test_wrapper_flags():
