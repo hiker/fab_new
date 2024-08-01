@@ -124,7 +124,7 @@ class CompilerWrapper(Compiler):
                      output_file: Path,
                      openmp: bool,
                      add_flags: Union[None, List[str]] = None,
-                     syntax_only: Optional[bool] = False):
+                     syntax_only: Optional[bool] = None):
         # pylint: disable=too-many-arguments
         '''Compiles a file using the wrapper compiler. It will temporarily
         change the name of the wrapped compiler, and then calls the original
@@ -146,6 +146,9 @@ class CompilerWrapper(Compiler):
                                         syntax_only=syntax_only,
                                         )
         else:
+            if syntax_only is not None:
+                raise RuntimeError(f"Syntax-only cannot be used with compiler "
+                                   f"'{self.name}'.")
             self._compiler.compile_file(input_file, output_file, openmp=openmp,
                                         add_flags=add_flags
                                         )

@@ -21,7 +21,11 @@ def test_compiler_check_available():
     '''Check if check_available works as expected. The compiler class
     uses internally get_version to test if a compiler works or not.
     '''
-    cc = CCompiler("gcc", "gcc", "gnu")
+    mpicc = ToolRepository().get_tool(Category.C_COMPILER,
+                                      "mpicc-gcc")
+    # Just make sure we get the right object:
+    assert isinstance(mpicc, CompilerWrapper)
+
     # The compiler uses get_version to check if it is available.
     # First simulate a successful run:
     with mock.patch.object(cc, "get_version", returncode=123):
@@ -146,7 +150,7 @@ def test_compiler_c_with_add_args():
                                                        'a.f90', '-o', 'a.o'])
 
 
-def test_flags():
+def test_wrapper_flags():
     '''Tests that flags set in the base compiler will be accessed in the
     wrapper.'''
     gcc = Gcc()
@@ -160,7 +164,7 @@ def test_flags():
     assert mpicc.flags == ["-a", "-b"]
 
 
-def test_mpi_gcc():
+def test_wrapper_mpi_gcc():
     '''Tests the MPI enables gcc class.'''
     mpi_gcc = Mpicc(Gcc())
     assert mpi_gcc.name == "mpicc-gcc"
@@ -170,7 +174,7 @@ def test_mpi_gcc():
     assert mpi_gcc.mpi
 
 
-def test_mpi_gfortran():
+def test_wrapper_mpi_gfortran():
     '''Tests the MPI enabled gfortran class.'''
     mpi_gfortran = Mpif90(Gfortran())
     assert mpi_gfortran.name == "mpif90-gfortran"
@@ -180,7 +184,7 @@ def test_mpi_gfortran():
     assert mpi_gfortran.mpi
 
 
-def test_mpi_icc():
+def test_wrapper_mpi_icc():
     '''Tests the MPI enabled icc class.'''
     mpi_icc = Mpicc(Icc())
     assert mpi_icc.name == "mpicc-icc"
@@ -190,7 +194,7 @@ def test_mpi_icc():
     assert mpi_icc.mpi
 
 
-def test_mpi_ifort():
+def test_wrapper_mpi_ifort():
     '''Tests the MPI enabled ifort class.'''
     mpi_ifort = Mpif90(Ifort())
     assert mpi_ifort.name == "mpif90-ifort"
