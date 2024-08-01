@@ -142,15 +142,12 @@ class Compiler(CompilerSuiteTool):
         :Returns: a version string, e.g '6.10.1', or empty string if
             a different error happened when trying to get the compiler version.
 
-        :raises RuntimeError: if the compiler was not found.
         """
         if self._version:
             return self._version
 
         try:
             res = self.run("--version", capture_output=True)
-        except FileNotFoundError as err:
-            raise RuntimeError(f'Compiler not found: {self.name}') from err
         except RuntimeError as err:
             self.logger.warning(f"Error asking for version of compiler "
                                 f"'{self.name}': {err}")

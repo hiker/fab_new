@@ -12,28 +12,85 @@ from unittest import mock
 
 import pytest
 
-from fab.tools import (Category, CCompiler,
-                       Gcc, Gfortran, Icc, Ifort,
-                       CompilerWrapper, Mpicc, Mpif90, ToolRepository)
+from fab.tools import (Category, CompilerWrapper, Gcc, Gfortran, Icc, Ifort,
+                       Mpicc, Mpif90, ToolRepository)
 
 
-def test_compiler_check_available():
-    '''Check if check_available works as expected. The compiler class
-    uses internally get_version to test if a compiler works or not.
+def test_compiler_wrapper_version_and_caching():
+    '''Tests that the compiler wrapper reports the right version number
+    from the actual compiler.
     '''
-    mpicc = ToolRepository().get_tool(Category.C_COMPILER,
-                                      "mpicc-gcc")
+    mpicc = Mpicc(Gcc())
+
+    # The wrapper should report the version of the wrapped compiler:
+    with (mock.patch('fab.tools.compiler.Compiler.get_version',
+                     return_value="123")):
+        assert mpicc.get_version() == "123"
+
+    # Test that the value is cached:
+    assert mpicc.get_version() == "123"
+
+
+def test_compiler_wrapper_version_consistency():
+    '''Tests that the compiler wrapper and compiler must report the
+    same version number:
+    '''
+
+    # The wrapper must verify that the wrapper compiler and wrapper
+    # report the same version number, otherwise raise an exception.
+    # The first patch changes the return value which the compiler wrapper
+    # will report (since it calls Compiler.get_version), the second
+    # changes the return value of the wrapper compiler instance only:
+
+    mpicc = Mpicc(Gcc())
+    with (mock.patch('fab.tools.compiler.Compiler.get_version',
+                     return_value="12"),
+          mock.patch.object(mpicc._compiler, 'get_version',
+                            return_value="34")):
+        with pytest.raises(RuntimeError) as err:
+            mpicc.get_version()
+        assert ("Different version for compiler 'Gcc - gcc: gcc' (34) and "
+                "compiler wrapper 'Mpicc(gcc)' (12)" in str(err.value))
+
+
+def test_compiler_wrapper_version_compiler_unavailable():
+    '''Checks the behaviour if the wrapped compiler is not available.
+    The wrapper should then report an empty result.
+    '''
+
+    mpicc = Mpicc(Gcc())
+    with mock.patch.object(mpicc._compiler, '_is_available', False):
+        assert mpicc.get_version() == ""
+
+
+def test_compiler_is_available_ok():
+    '''Check if check_available works as expected.
+    '''
+    mpicc = Mpicc(Gcc())
+
     # Just make sure we get the right object:
     assert isinstance(mpicc, CompilerWrapper)
 
-    # The compiler uses get_version to check if it is available.
-    # First simulate a successful run:
-    with mock.patch.object(cc, "get_version", returncode=123):
-        assert cc.check_available()
+    # Make sure that the compiler-wrapper itself reports that it is available:
+    with (mock.patch('fab.tools.compiler.Compiler.is_available',
+                     return_value=True),
+          mock.patch('fab.tools.compiler.Compiler.get_version',
+                     return_value="123")):
+        assert mpicc.is_available
 
+    # Test that the value is cached:
+    assert mpicc.is_available
+
+
+def test_compiler_is_available_no_version():
+    '''Make sure a compiler that does not return a valid version
+    is marked as not available.
+    '''
+    mpicc = Mpicc(Gcc())
     # Now test if get_version raises an error
-    with mock.patch.object(cc, "get_version", side_effect=RuntimeError("")):
-        assert not cc.check_available()
+    with mock.patch.object(mpicc._compiler, "get_version",
+                           side_effect=RuntimeError("")):
+        assert not mpicc.check_available()
 
 
 def test_compiler_hash():
@@ -49,10 +106,19 @@ def test_compiler_hash():
         hash2 = mpicc.get_hash()
         assert hash2 != hash1
 
-    # A change in the name must change the hash, again:
-    with mock.patch.object(mpicc, "_name", "new_name"):
+    # A change in the name with the original version number
+    # 567) must change the hash again:
+    with (mock.patch.object(mpicc, "_name", "new_name"),
+          mock.patch.object(mpicc, "_version", 567)):
         hash3 = mpicc.get_hash()
         assert hash3 not in (hash1, hash2)
+
+    # A change in the name with the modified version number
+    # must change the hash again:
+    with (mock.patch.object(mpicc, "_name", "new_name"),
+          mock.patch.object(mpicc, "_version", 89)):
+        hash4 = mpicc.get_hash()
+        assert hash4 not in (hash1, hash2, hash3)
 
 
 def test_compiler_wrapper_syntax_only():

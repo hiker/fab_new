@@ -10,7 +10,6 @@ classes for gcc, gfortran, icc, ifort
 
 from pathlib import Path
 from typing import cast, List, Optional, Union
-import warnings
 
 from fab.tools.category import Category
 from fab.tools.compiler import Compiler, FortranCompiler
@@ -43,39 +42,46 @@ class CompilerWrapper(Compiler):
     def __str__(self):
         return f"{type(self).__name__}({self._compiler.name})"
 
+    def get_version(self) -> str:
+        """
+        :Returns: a version string, e.g '6.10.1', or empty string if
+            a different error happened when trying to get the compiler version.
+
+        """
+        if self._version is not None:
+            return self._version
+
+        if not self._compiler.is_available:
+            self._version = ""
+            return ""
+
+        compiler_version = self._compiler.get_version()
+        wrapper_version = super().get_version()
+        if compiler_version != wrapper_version:
+            raise RuntimeError(f"Different version for compiler "
+                               f"'{self._compiler}' ({compiler_version}) and "
+                               f"compiler wrapper '{self}' "
+                               f"({wrapper_version}).")
+        self._version = wrapper_version
+        return wrapper_version
+
     @property
     def is_available(self) -> bool:
-        '''Checks if the tool is available or not. It will call a tool-specific
-        function check_available to determine this, but will cache the results
-        to avoid testing a tool more than once.
+        '''Checks if the tool is available or not.
 
         :returns: whether the tool is available (i.e. installed and
             working).
         '''
+
+        # Rely on `get_version` to do the heavy lifting (e.g. verifying that
+        # both the wrapper and the wrapped compiler do report the same
+        # version number) - so if we have a valid version, we can be sure
+        # the compiler is available, otherwise it is not available or
+        # inconsistent, in which case it should not be used.
         if self._is_available is not None:
             return self._is_available
-
-        # We need to check that both the wrapper and the original compiler are
-        # available:
-        if not self._compiler.is_available:
-            print("Orig compiler not available)")
-            self._is_available = False
-            return False
-
-        if not super().is_available:
-            # This will set self._is_available, so need to set it here.
-            return False
-
-        # Both the compiler and wrapper are available. Make sure they are
-        # consistent, i.e. both report the same version number:
-
-        if super().get_version() != self._compiler.get_version():
-            warnings.warn(f"Compiler wrapper '{self}' is inconsistent: "
-                          f"compiler version is "
-                          f"'{self._compiler.get_version()}', but wrapper "
-                          f"reports '{super().get_version()}'.")
-            return False
-        return True
+        self._is_available = self.get_version() != ""
+        return self._is_available
 
     @property
     def category(self) -> Category:

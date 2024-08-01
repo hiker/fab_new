@@ -177,10 +177,6 @@ class TestGetCompilerVersion:
                      category=Category.FORTRAN_COMPILER)
         with mock.patch.object(c, 'run', side_effect=RuntimeError()):
             assert c.get_version() == '', 'expected empty string'
-        with mock.patch.object(c, 'run', side_effect=FileNotFoundError()):
-            with pytest.raises(RuntimeError) as err:
-                c.get_version()
-            assert "Compiler not found: gfortran" in str(err.value)
 
     def test_unknown_command_response(self):
         '''If the full version output is in an unknown format,
