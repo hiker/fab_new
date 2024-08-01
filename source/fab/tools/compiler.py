@@ -52,7 +52,7 @@ class Compiler(CompilerSuiteTool):
                  openmp_flag: Optional[str] = None,
                  availablility_option: Optional[str] = None):
         super().__init__(name, exec_name, suite, category=category)
-        self._version = None
+        self._version: Optional[str] = None
         self._mpi = mpi
         self._compile_flag = compile_flag if compile_flag else "-c"
         self._output_flag = output_flag if output_flag else "-o"
