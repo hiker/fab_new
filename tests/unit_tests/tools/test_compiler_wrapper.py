@@ -100,26 +100,50 @@ def test_compiler_fortran_with_add_args():
         mpif90.compile_file(Path("a.f90"), "a.o",
                             add_flags=["-fopenmp", "-O3"],
                             openmp=True, syntax_only=True)
+        mpif90._compiler.run.assert_called_with(
+            cwd=PosixPath('.'), additional_parameters=['-c', '-fopenmp',
+                                                       '-fopenmp', '-O3',
+                                                       '-fsyntax-only',
+                                                       '-J', '/module_out',
+                                                       'a.f90', '-o', 'a.o'])
 
 
 def test_compiler_c_with_add_args():
-    '''Tests that additional arguments are handled as expected.'''
+    '''Tests that additional arguments are handled as expected. Also verify
+    that requesting Fortran-specific options like syntax-only with the
+    C compiler raises a runtime error.
+    '''
+
     mpicc = ToolRepository().get_tool(Category.C_COMPILER,
                                       "mpicc-gcc")
-    mpicc._compiler.run = mock.MagicMock()
-    mpicc.compile_file(Path("a.f90"), "a.o", openmp=False, add_flags=["-O3"],
-                       syntax_only=True)
-    # Notice that "-J/b" has been removed
-    mpicc._compiler.run.assert_called_with(
-        cwd=PosixPath('.'), additional_parameters=['-c', "-O3",
-                                                   'a.f90', '-o', 'a.o'])
-    with pytest.warns(UserWarning,
-                      match="explicitly provided. OpenMP should be enabled in "
-                            "the BuildConfiguration"):
-        print("2")
+    with mock.patch.object(mpicc._compiler, "run", mock.MagicMock()):
+        # Normal invoke of the C compiler, make sure add_flags are
+        # passed through:
+        mpicc.compile_file(Path("a.f90"), "a.o", openmp=False,
+                           add_flags=["-O3"])
+        mpicc._compiler.run.assert_called_with(
+            cwd=PosixPath('.'), additional_parameters=['-c', "-O3",
+                                                       'a.f90', '-o', 'a.o'])
+        # Invoke C compiler with syntax-only flag (which is only supported
+        # by Fortran compilers), which should raise an exception.
+        with pytest.raises(RuntimeError) as err:
+            mpicc.compile_file(Path("a.f90"), "a.o", openmp=False,
+                               add_flags=["-O3"], syntax_only=True)
+    assert ("Syntax-only cannot be used with compiler 'mpicc-gcc'."
+            in str(err.value))
+
+    # Check that providing the openmp flag in add_flag raises a warning:
+    with (mock.patch.object(mpicc._compiler, "run", mock.MagicMock()),
+          pytest.warns(UserWarning,
+                       match="explicitly provided. OpenMP should be enabled "
+                             "in the BuildConfiguration")):
         mpicc.compile_file(Path("a.f90"), "a.o",
                            add_flags=["-fopenmp", "-O3"],
-                           openmp=True, syntax_only=True)
+                           openmp=True)
+        mpicc._compiler.run.assert_called_with(
+            cwd=PosixPath('.'), additional_parameters=['-c', '-fopenmp',
+                                                       '-fopenmp', '-O3',
+                                                       'a.f90', '-o', 'a.o'])
 
 
 def test_flags():
