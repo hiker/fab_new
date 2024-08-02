@@ -9,7 +9,7 @@ classes for gcc, gfortran, icc, ifort
 """
 
 from pathlib import Path
-from typing import cast, List, Optional, Union
+from typing import cast, List, Optional, Tuple, Union
 
 from fab.tools.category import Category
 from fab.tools.compiler import Compiler, FortranCompiler
@@ -42,20 +42,23 @@ class CompilerWrapper(Compiler):
     def __str__(self):
         return f"{type(self).__name__}({self._compiler.name})"
 
-    def get_version(self) -> str:
+    def get_version(self) -> Tuple[int, ...]:
         """
-        :Returns: a version string, e.g '6.10.1', or empty string if
-            a different error happened when trying to get the compiler version.
+        :returns: a tuple of at least 2 integers, representing the version
+            e.g. (6, 10, 1) for version '6.10.1'.
 
+        :raises RuntimeError: if the compiler was not found, or if it returned
+            an unrecognised output from the version command.
         """
+
         if self._version is not None:
             return self._version
 
-        if not self._compiler.is_available:
-            self._version = ""
-            return ""
-
-        compiler_version = self._compiler.get_version()
+        try:
+            compiler_version = self._compiler.get_version()
+        except RuntimeError as err:
+            raise RuntimeError(f"Cannot get version of wrapped compiler '"
+                               f"{self._compiler}") from err
         wrapper_version = super().get_version()
         if compiler_version != wrapper_version:
             raise RuntimeError(f"Different version for compiler "

@@ -61,7 +61,9 @@ def test_compiler_wrapper_version_compiler_unavailable():
 
     mpicc = Mpicc(Gcc())
     with mock.patch.object(mpicc._compiler, '_is_available', False):
-        assert mpicc.get_version() == ""
+        with pytest.raises(RuntimeError) as err:
+            assert mpicc.get_version() == ""
+        assert "Cannot get version of wrapped compiler" in str(err.value)
 
 
 def test_compiler_is_available_ok():
@@ -98,26 +100,26 @@ def test_compiler_hash():
     '''Test the hash functionality.'''
     mpicc = ToolRepository().get_tool(Category.C_COMPILER,
                                       "mpicc-gcc")
-    with mock.patch.object(mpicc, "_version", 567):
+    with mock.patch.object(mpicc, "_version", (567,)):
         hash1 = mpicc.get_hash()
         assert hash1 == 4702012005
 
     # A change in the version number must change the hash:
-    with mock.patch.object(mpicc, "_version", 89):
+    with mock.patch.object(mpicc, "_version", (89,)):
         hash2 = mpicc.get_hash()
         assert hash2 != hash1
 
     # A change in the name with the original version number
     # 567) must change the hash again:
     with mock.patch.object(mpicc, "_name", "new_name"):
-        with mock.patch.object(mpicc, "_version", 567):
+        with mock.patch.object(mpicc, "_version", (567,)):
             hash3 = mpicc.get_hash()
             assert hash3 not in (hash1, hash2)
 
     # A change in the name with the modified version number
     # must change the hash again:
     with mock.patch.object(mpicc, "_name", "new_name"):
-        with mock.patch.object(mpicc, "_version", 89):
+        with mock.patch.object(mpicc, "_version", (89,)):
             hash4 = mpicc.get_hash()
             assert hash4 not in (hash1, hash2, hash3)
 
