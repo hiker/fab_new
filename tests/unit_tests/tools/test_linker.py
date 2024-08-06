@@ -136,3 +136,53 @@ def test_linker_add_compiler_flag():
     tool_run.assert_called_with(
         ['no-compiler.exe', '-some-other-flag', 'a.o', '-o', 'a.out'],
         capture_output=True, env=None, cwd=None, check=False)
+
+# The linker base class should provide a dictionary that maps strings (which are
+# 'standard' library names) to a list of linker flags. E.g.
+#
+#    'netcdf' -> ['$(nf-config --flibs)', '($nc-config --libs)']
+def test_linker_get_lib_flags(mock_c_compiler):
+    '''Linker should provide a map of 'standard' library names to a list of
+    linker flags
+    '''
+    linker = Linker(compiler=mock_c_compiler)
+    assert linker.get_lib_flags('netcdf') == ['$(nf-config --flibs)', '($nc-config --libs)']
+
+
+# If a library is specified that is unknown, raise an error.
+def test_linker_get_lib_flags_unknown(mock_c_compiler):
+    '''Linker should raise an error if flags are requested for a library that is
+    unknown
+    '''
+    linker = Linker(compiler=mock_c_compiler)
+    with pytest.raises(RuntimeError) as err:
+        linker.get_lib_flags('unknown')
+    assert "Unknown library name" in str(err.value)
+
+
+# # There must be function to add and remove libraries (and Fab as default would
+# # likely provide none? Or Maybe just say netcdf as an example, since this is
+# # reasonable portable). Site-specific scripts will want to modify the settings
+# def test_linker_add_library_flags(mock_c_compiler):
+#     linker = Linker(compiler=mock_c_compiler)
+#     linker.add_lib_flags('xios', ['-L', 'xios/lib', '-l', 'xios/lib'])
+
+
+# # An application then only specifies which libraries it needs to link with (and
+# # in what order), and the linker then adds the correct flags during the linking
+# # stage.
+# def test_linker_add_compiler_flags_by_lib(mock_c_compiler):
+#     '''Make sure linker flags are added for the required libraries:
+#     '''
+#     linker = Linker(compiler=mock_c_compiler)
+#     linker.add_lib_flags('xios', ['-flag', '/xios/flag'])
+#     linker.add_lib_flags('netcdf', ['$(nf-config --flibs)', '($nc-config --libs)'])
+#     mock_result = mock.Mock(returncode=0)
+#     with mock.patch('fab.tools.tool.subprocess.run',
+#                     return_value=mock_result) as tool_run:
+#         linker.link([Path("a.o")], Path("a.out"), libs=['xios'], openmp=False)
+#     tool_run.assert_called_with(
+#         ['mock_c_compiler.exe', '-flag', '/xios/flag', 'a.o', '-o', 'a.out'],
+#         capture_output=True, env=None, cwd=None, check=False)
+
+

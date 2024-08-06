@@ -51,6 +51,11 @@ class Linker(CompilerSuiteTool):
         self._compiler = compiler
         self.flags.extend(os.getenv("LDFLAGS", "").split())
 
+        # Maintain a set of flags for common libraries.
+        self.env_flags = {
+            'netcdf': ['$(nf-config --flibs)', '($nc-config --libs)']
+        }
+
     def check_available(self) -> bool:
         '''
         :returns: whether the linker is available or not. We do this
@@ -60,6 +65,20 @@ class Linker(CompilerSuiteTool):
             return self._compiler.check_available()
 
         return super().check_available()
+
+    def get_lib_flags(self, lib: str) -> List[str]:
+        '''Gets the standard flags for a standard library
+
+        :param lib: the library name
+
+        :returns: a list of flags
+
+        :raises RuntimeError: if lib is not recognised
+        '''
+        try:
+            return self.env_flags[lib]
+        except KeyError:
+            raise RuntimeError(f"Unknown library name: '{lib}'")
 
     def link(self, input_files: List[Path], output_file: Path,
              openmp: bool,
