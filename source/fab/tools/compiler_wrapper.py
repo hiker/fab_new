@@ -199,7 +199,7 @@ class Mpicc(CompilerWrapper):
     It will be using the name "mpicc-COMPILER_NAME" and calls `mpicc`.
     All flags from the original compiler will be used when using the wrapper
     as compiler.
-s
+
     :param compiler: the compiler that the mpicc wrapper will use.
     '''
 
