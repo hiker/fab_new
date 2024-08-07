@@ -38,6 +38,10 @@ class CompilerWrapper(Compiler):
             suite=self._compiler.suite,
             mpi=mpi,
             availablility_option=self._compiler.availablility_option)
+        # We need to have the right version to parse the version output
+        # So we set this function based on the function that the
+        # wrapped compiler uses:
+        self.parse_version_output = compiler.parse_version_output
 
     def __str__(self):
         return f"{type(self).__name__}({self._compiler.name})"
@@ -59,6 +63,7 @@ class CompilerWrapper(Compiler):
         except RuntimeError as err:
             raise RuntimeError(f"Cannot get version of wrapped compiler '"
                                f"{self._compiler}") from err
+
         wrapper_version = super().get_version()
         if compiler_version != wrapper_version:
             compiler_version_string = self._compiler.get_version_string()

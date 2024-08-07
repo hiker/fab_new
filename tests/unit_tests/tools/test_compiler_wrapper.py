@@ -43,14 +43,16 @@ def test_compiler_wrapper_version_consistency():
     # changes the return value of the wrapper compiler instance only:
 
     mpicc = Mpicc(Gcc())
-    with mock.patch('fab.tools.compiler.Compiler.get_version',
-                    return_value=(1, 2)):
-        with mock.patch.object(mpicc._compiler, 'get_version',
-                               return_value=(3, 4)):
+    with mock.patch('fab.tools.compiler.Compiler.run_version_command',
+                    return_value="gcc (GCC) 8.6.0 20210514 (Red Hat "
+                                 "8.5.0-20)"):
+        with mock.patch.object(mpicc._compiler, 'run_version_command',
+                               return_value="gcc (GCC) 8.5.0 20210514 (Red "
+                                            "Hat 8.5.0-20)"):
             with pytest.raises(RuntimeError) as err:
                 mpicc.get_version()
-            assert ("Different version for compiler 'Gcc - gcc: gcc' (3.4) "
-                    "and compiler wrapper 'Mpicc(gcc)' (1.2)" in
+            assert ("Different version for compiler 'Gcc - gcc: gcc' (8.5.0) "
+                    "and compiler wrapper 'Mpicc(gcc)' (8.6.0)" in
                     str(err.value))
 
 
