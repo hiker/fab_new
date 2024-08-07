@@ -67,8 +67,8 @@ class CompilerWrapper(Compiler):
         wrapper_version = super().get_version()
         if compiler_version != wrapper_version:
             compiler_version_string = self._compiler.get_version_string()
-            # We cannot call super().get_version_string() calls get_version
-            # so we get an infinite recursion
+            # We cannot call super().get_version_string(), since this calls
+            # calls get_version(), so we get an infinite recursion
             wrapper_version_string = ".".join(str(x) for x in wrapper_version)
             raise RuntimeError(f"Different version for compiler "
                                f"'{self._compiler}' "
@@ -90,14 +90,14 @@ class CompilerWrapper(Compiler):
         # version number) - so if we have a valid version, we can be sure
         # the compiler is available, otherwise it is not available or
         # inconsistent, in which case it should not be used.
-        if self._is_available is not None:
-            return self._is_available
-        try:
-            # This will raise an exception if the compiler is not available
-            self.get_version()
-            self._is_available = True
-        except RuntimeError:
-            self._is_available = False
+        if self._is_available is None:
+            try:
+                # This will raise an exception if the compiler is not available
+                self.get_version()
+                self._is_available = True
+            except RuntimeError:
+                self._is_available = False
+
         return self._is_available
 
     @property
