@@ -24,11 +24,11 @@ def test_compiler_wrapper_version_and_caching():
 
     # The wrapper should report the version of the wrapped compiler:
     with (mock.patch('fab.tools.compiler.Compiler.get_version',
-                     return_value="123")):
-        assert mpicc.get_version() == "123"
+                     return_value=(123,))):
+        assert mpicc.get_version() == (123,)
 
     # Test that the value is cached:
-    assert mpicc.get_version() == "123"
+    assert mpicc.get_version() == (123,)
 
 
 def test_compiler_wrapper_version_consistency():
@@ -44,13 +44,13 @@ def test_compiler_wrapper_version_consistency():
 
     mpicc = Mpicc(Gcc())
     with mock.patch('fab.tools.compiler.Compiler.get_version',
-                    return_value="12"):
+                    return_value=(1, 2)):
         with mock.patch.object(mpicc._compiler, 'get_version',
-                               return_value="34"):
+                               return_value=(3, 4)):
             with pytest.raises(RuntimeError) as err:
                 mpicc.get_version()
-            assert ("Different version for compiler 'Gcc - gcc: gcc' (34) "
-                    "and compiler wrapper 'Mpicc(gcc)' (12)" in
+            assert ("Different version for compiler 'Gcc - gcc: gcc' (3.4) "
+                    "and compiler wrapper 'Mpicc(gcc)' (1.2)" in
                     str(err.value))
 
 
@@ -78,7 +78,7 @@ def test_compiler_is_available_ok():
     with mock.patch('fab.tools.compiler.Compiler.is_available',
                     return_value=True):
         with mock.patch('fab.tools.compiler.Compiler.get_version',
-                        return_value="123"):
+                        return_value=(1, 2, 3)):
             assert mpicc.is_available
 
     # Test that the value is cached:
@@ -93,7 +93,7 @@ def test_compiler_is_available_no_version():
     # Now test if get_version raises an error
     with mock.patch.object(mpicc._compiler, "get_version",
                            side_effect=RuntimeError("")):
-        assert not mpicc.check_available()
+        assert not mpicc.is_available
 
 
 def test_compiler_hash():
@@ -137,8 +137,8 @@ def test_compiler_wrapper_syntax_only():
     assert "'gcc' has no has_syntax_only" in str(err.value)
 
 
-def test_compiler_module_output():
-    '''Tests handling of module output_flags in wrapper. In case of testing
+def test_compiler_wrapper_module_output():
+    '''Tests handling of module output_flags in a wrapper. In case of testing
     this with a C compiler, an exception must be raised.'''
     mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
                                        "mpif90-gfortran")
@@ -151,8 +151,9 @@ def test_compiler_module_output():
     assert "'gcc' has no 'set_module_output_path' function" in str(err.value)
 
 
-def test_compiler_fortran_with_add_args():
-    '''Tests that additional arguments are handled as expected.'''
+def test_compiler_wrapper_fortran_with_add_args():
+    '''Tests that additional arguments are handled as expected in
+    a wrapper.'''
     mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
                                        "mpif90-gfortran")
     mpif90.set_module_output_path("/module_out")
@@ -181,10 +182,10 @@ def test_compiler_fortran_with_add_args():
                                        'a.f90', '-o', 'a.o'])
 
 
-def test_compiler_c_with_add_args():
-    '''Tests that additional arguments are handled as expected. Also verify
-    that requesting Fortran-specific options like syntax-only with the
-    C compiler raises a runtime error.
+def test_compiler_wrapper_c_with_add_args():
+    '''Tests that additional arguments are handled as expected in a
+    compiler wrapper. Also verify that requesting Fortran-specific options
+    like syntax-only with the C compiler raises a runtime error.
     '''
 
     mpicc = ToolRepository().get_tool(Category.C_COMPILER,
@@ -219,7 +220,7 @@ def test_compiler_c_with_add_args():
                                        'a.f90', '-o', 'a.o'])
 
 
-def test_wrapper_flags():
+def test_compiler_wrapper_flags():
     '''Tests that flags set in the base compiler will be accessed in the
     wrapper.'''
     gcc = Gcc()
@@ -233,7 +234,7 @@ def test_wrapper_flags():
     assert mpicc.flags == ["-a", "-b"]
 
 
-def test_wrapper_mpi_gcc():
+def test_compiler_wrapper_mpi_gcc():
     '''Tests the MPI enables gcc class.'''
     mpi_gcc = Mpicc(Gcc())
     assert mpi_gcc.name == "mpicc-gcc"
@@ -241,9 +242,10 @@ def test_wrapper_mpi_gcc():
     assert isinstance(mpi_gcc, CompilerWrapper)
     assert mpi_gcc.category == Category.C_COMPILER
     assert mpi_gcc.mpi
+    assert mpi_gcc.suite == "gnu"
 
 
-def test_wrapper_mpi_gfortran():
+def test_compiler_wrapper_mpi_gfortran():
     '''Tests the MPI enabled gfortran class.'''
     mpi_gfortran = Mpif90(Gfortran())
     assert mpi_gfortran.name == "mpif90-gfortran"
@@ -251,9 +253,10 @@ def test_wrapper_mpi_gfortran():
     assert isinstance(mpi_gfortran, CompilerWrapper)
     assert mpi_gfortran.category == Category.FORTRAN_COMPILER
     assert mpi_gfortran.mpi
+    assert mpi_gfortran.suite == "gnu"
 
 
-def test_wrapper_mpi_icc():
+def test_compiler_wrapper_mpi_icc():
     '''Tests the MPI enabled icc class.'''
     mpi_icc = Mpicc(Icc())
     assert mpi_icc.name == "mpicc-icc"
@@ -261,9 +264,10 @@ def test_wrapper_mpi_icc():
     assert isinstance(mpi_icc, CompilerWrapper)
     assert mpi_icc.category == Category.C_COMPILER
     assert mpi_icc.mpi
+    assert mpi_icc.suite == "intel-classic"
 
 
-def test_wrapper_mpi_ifort():
+def test_compiler_wrapper_mpi_ifort():
     '''Tests the MPI enabled ifort class.'''
     mpi_ifort = Mpif90(Ifort())
     assert mpi_ifort.name == "mpif90-ifort"
@@ -271,3 +275,4 @@ def test_wrapper_mpi_ifort():
     assert isinstance(mpi_ifort, CompilerWrapper)
     assert mpi_ifort.category == Category.FORTRAN_COMPILER
     assert mpi_ifort.mpi
+    assert mpi_ifort.suite == "intel-classic"
