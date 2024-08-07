@@ -41,7 +41,7 @@ class CompilerWrapper(Compiler):
         # We need to have the right version to parse the version output
         # So we set this function based on the function that the
         # wrapped compiler uses:
-        self.parse_version_output = compiler.parse_version_output
+        setattr(self, "parse_version_output", compiler.parse_version_output)
 
     def __str__(self):
         return f"{type(self).__name__}({self._compiler.name})"
