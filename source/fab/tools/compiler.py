@@ -344,7 +344,7 @@ class GnuVersionHandling():
         if category is Category.FORTRAN_COMPILER:
             display_name = 'GNU Fortran'
 
-        exp = display_name + r" \(.*?\) (\d[\d\.]+\d)\b"
+        exp = display_name + r" \(.*?\) ([\d\.]+)\b"
         matches = re.findall(exp, version_output)
         if not matches:
             raise RuntimeError(f"Unexpected version output format for "
@@ -410,7 +410,7 @@ class IntelVersionHandling():
 
         # Expect the version to appear after some in parentheses, e.g.
         # "icc (...) n.n[.n, ...]" or "ifort (...) n.n[.n, ...]"
-        exp = name + r" \(.*?\) (\d[\d\.]+\d)\b"
+        exp = name + r" \(.*?\) ([\d\.]+)\b"
         matches = re.findall(exp, version_output)
 
         if not matches:
