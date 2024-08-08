@@ -51,6 +51,11 @@ class Linker(CompilerSuiteTool):
         self._compiler = compiler
         self.flags.extend(os.getenv("LDFLAGS", "").split())
 
+    @property
+    def mpi(self) -> bool:
+        ''':returns: whether the linker supports MPI or not.'''
+        return self._compiler.mpi
+
     def check_available(self) -> bool:
         '''
         :returns: whether the linker is available or not. We do this

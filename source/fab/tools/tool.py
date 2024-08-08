@@ -219,8 +219,3 @@ class CompilerSuiteTool(Tool):
     def suite(self) -> str:
         ''':returns: the compiler suite of this tool.'''
         return self._suite
-
-    @property
-    def mpi(self) -> bool:
-        ''':returns: whether this tool supports MPI or not.'''
-        return False
