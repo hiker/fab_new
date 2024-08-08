@@ -116,6 +116,11 @@ class CompilerWrapper(Compiler):
         return self._compiler.suite
 
     @property
+    def openmp_flag(self) -> str:
+        '''Returns the flag to enable OpenMP.'''
+        return self._compiler.openmp_flag
+
+    @property
     def has_syntax_only(self) -> bool:
         ''':returns: whether this compiler supports a syntax-only feature.
 

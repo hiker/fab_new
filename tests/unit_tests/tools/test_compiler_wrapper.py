@@ -234,6 +234,7 @@ def test_compiler_wrapper_flags():
     gcc.add_flags(["-a", "-b"])
     assert gcc.flags == ["-a", "-b"]
     assert mpicc.flags == ["-a", "-b"]
+    assert mpicc.openmp_flag == gcc.openmp_flag
 
 
 def test_compiler_wrapper_mpi_gcc():
