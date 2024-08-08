@@ -36,26 +36,24 @@ def test_compile_cc_wrong_compiler(tool_box):
     '''Test if a non-C compiler is specified as c compiler.
     '''
     config = BuildConfig('proj', tool_box, mpi=False, openmp=False)
-    # Take the Fortran compiler
-    cc = tool_box[Category.C_COMPILER]
-    # And set its category to C_COMPILER
-    cc._category = Category.FORTRAN_COMPILER
-    # So overwrite the C compiler with the re-categories Fortran compiler
-    tool_box.add_tool(cc, silent_replace=True)
+    # Put the Fortran compiler into the ToolBox
+    fc = tool_box[Category.FORTRAN_COMPILER]
+    tool_box.add_tool(fc, silent_replace=True)
+    # But then change its category to be a C compiler:
+    fc._category = Category.C_COMPILER
 
-    # Now check that _compile_file detects the incorrect class of the
-    # C compiler
+    # Now check that _compile_file detects the incorrect category of the
+    # Fortran compiler
     mp_common_args = mock.Mock(config=config)
     with pytest.raises(RuntimeError) as err:
         process_file((None, mp_common_args))
-    assert ("Unexpected tool 'mock_c_compiler' of type '<class "
-            "'fab.tools.compiler.CCompiler'>' instead of FortranCompiler"
-            in str(err.value))
+    assert ("Unexpected tool 'mock_fortran_compiler' of category "
+            "'C_COMPILER' instead of FortranCompiler"in str(err.value))
+
     with pytest.raises(RuntimeError) as err:
         handle_compiler_args(config)
-    assert ("Unexpected tool 'mock_c_compiler' of type '<class "
-            "'fab.tools.compiler.CCompiler'>' instead of FortranCompiler"
-            in str(err.value))
+    assert ("Unexpected tool 'mock_fortran_compiler' of category "
+            "'C_COMPILER' instead of FortranCompiler" in str(err.value))
 
 
 class TestCompilePass:
