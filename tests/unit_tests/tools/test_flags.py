@@ -16,16 +16,30 @@ def test_flags_constructor():
     '''Tests the constructor of Flags.'''
     f1 = Flags()
     assert isinstance(f1, list)
+
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert f1 == []
     f2 = Flags(["a"])
     assert isinstance(f2, list)
     assert f2 == ["a"]
 
 
+def test_flags_adding():
+    '''Tests adding flags.'''
+    f1 = Flags()
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
+    assert f1 == []
+    f1.add_flags("-a")
+    assert f1 == ["-a"]
+    f1.add_flags(["-b", "-c"])
+    assert f1 == ["-a", "-b", "-c"]
+
+
 def test_remove_flags():
     '''Test remove_flags functionality.'''
     flags = Flags()
     flags.remove_flag("-c", False)
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert flags == []
 
     all_flags = ['a.f90', '-c', '-o', 'a.o', '-fsyntax-only', "-J", "/tmp"]

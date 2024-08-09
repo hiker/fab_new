@@ -35,27 +35,25 @@ def fixture_artefact_store(analysed_files):
 def test_compile_cc_wrong_compiler(tool_box):
     '''Test if a non-C compiler is specified as c compiler.
     '''
-    config = BuildConfig('proj', tool_box)
-    # Take the Fortran compiler
-    cc = tool_box[Category.C_COMPILER]
-    # And set its category to C_COMPILER
-    cc._category = Category.FORTRAN_COMPILER
-    # So overwrite the C compiler with the re-categories Fortran compiler
-    tool_box.add_tool(cc, silent_replace=True)
+    config = BuildConfig('proj', tool_box, mpi=False, openmp=False)
+    # Put the Fortran compiler into the ToolBox
+    fc = tool_box[Category.FORTRAN_COMPILER]
+    tool_box.add_tool(fc, silent_replace=True)
+    # But then change its category to be a C compiler:
+    fc._category = Category.C_COMPILER
 
-    # Now check that _compile_file detects the incorrect class of the
-    # C compiler
+    # Now check that _compile_file detects the incorrect category of the
+    # Fortran compiler
     mp_common_args = mock.Mock(config=config)
     with pytest.raises(RuntimeError) as err:
         process_file((None, mp_common_args))
-    assert ("Unexpected tool 'mock_c_compiler' of type '<class "
-            "'fab.tools.compiler.CCompiler'>' instead of FortranCompiler"
-            in str(err.value))
+    assert ("Unexpected tool 'mock_fortran_compiler' of category "
+            "'C_COMPILER' instead of FortranCompiler" in str(err.value))
+
     with pytest.raises(RuntimeError) as err:
         handle_compiler_args(config)
-    assert ("Unexpected tool 'mock_c_compiler' of type '<class "
-            "'fab.tools.compiler.CCompiler'>' instead of FortranCompiler"
-            in str(err.value))
+    assert ("Unexpected tool 'mock_fortran_compiler' of category "
+            "'C_COMPILER' instead of FortranCompiler" in str(err.value))
 
 
 class TestCompilePass:
@@ -76,7 +74,7 @@ class TestCompilePass:
         # this gets filled in
         mod_hashes: Dict[str, int] = {}
 
-        config = BuildConfig('proj', tool_box)
+        config = BuildConfig('proj', tool_box, mpi=False, openmp=False)
         mp_common_args = MpCommonArgs(config, FlagsConfig(), {}, True)
         with mock.patch('fab.steps.compile_fortran.run_mp', return_value=run_mp_results):
             with mock.patch('fab.steps.compile_fortran.get_mod_hashes'):
@@ -161,7 +159,8 @@ def fixture_content(tool_box):
     obj_combo_hash = '17ef947fd'
     mods_combo_hash = '10867b4f3'
     mp_common_args = MpCommonArgs(
-        config=BuildConfig('proj', tool_box, fab_workspace=Path('/fab')),
+        config=BuildConfig('proj', tool_box, mpi=False, openmp=False,
+                           fab_workspace=Path('/fab')),
         flags=flags_config,
         mod_hashes={'mod_dep_1': 12345, 'mod_dep_2': 23456},
         syntax_only=False,
@@ -462,7 +461,7 @@ class TestGetModHashes:
             mock.Mock(module_defs=['foo', 'bar']),
         }
 
-        config = BuildConfig('proj', tool_box,
+        config = BuildConfig('proj', tool_box, mpi=False, openmp=False,
                              fab_workspace=Path('/fab_workspace'))
 
         with mock.patch('pathlib.Path.exists', side_effect=[True, True]):

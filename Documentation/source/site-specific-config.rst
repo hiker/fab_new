@@ -148,6 +148,59 @@ rsync, ar, ...).
     tool_box = ToolBox()
     default_c_compiler = tool_box.get_tool(Category.C_COMPILER)
 
+Compiler Wrapper
+================
+Fab supports the concept of a compiler wrapper, which is typically
+a script that calls the actual compiler. An example for a wrapper is
+`mpif90`, which might call a GNU or Intel based compiler (with additional
+parameter for accessing the MPI specific include and library paths.).
+An example to create a `mpicc` wrapper:
+
+.. code-block::
+    :linenos:
+    :caption: Defning an mpicc compiler wrapper
+
+    class Mpicc(CompilerWrapper):
+        def __init__(self, compiler: Compiler):
+            super().__init__(name=f"mpicc-{compiler.name}",
+                             exec_name="mpicc",
+                             compiler=compiler, mpi=True)
+
+The tool system allows several different tools to use the same name
+for the executable, as long as the Fab name is different. The tool
+repository will automatically add compiler wrapper for `mpicc` and
+`mpif90` for any compiler that is added by Fab. If you want to add
+a new compiler, which can also be invoked using `mpif90`, you need
+to add a compiler wrapper as follows (example taking from the
+ToolRepository):
+
+.. code-block::
+    :linenos:
+    :caption: Adding a mpicc wrapper to the tool repository
+
+    my_new_compiler = MyNewCompiler()
+    ToolRepository().add_tool(my_new_compiler)
+    my_new_mpicc = Mpicc(MyNewCompiler)
+    ToolRepository().add_tool(my_new_mpicc)
+
+It is important that the same instance is added to the tool repository
+and to the compiler wrapper - this will allow the wrapper and the
+wrapped compiler to share flags. If for example a flag is added to
+`my_new_compiler`, this flag will automatically be used when the
+wrapper `my_new_mpicc` is used.
+
+.. code-block::
+    :linenos:
+    :caption: Sharing flags between compiler and compiler wrapper
+
+    gcc = Gcc()
+    mpicc = Mpicc(gcc)
+
+    gcc.add_flags(["-a", "-b"])
+
+    assert mpicc.flags == ["-a", "-b"]
+
+
 
 TODO
 ====
@@ -157,3 +210,8 @@ definition in the compiler objects.
 This will allow a site to define their own set of default flags to
 be used with a certain compiler by replacing or updating a compiler
 instance in the Tool Repository
+
+Also, a lot of content in this chapter is not actually about site-specific
+configuration. This should likely be renamed or split (once we
+have details about the using site-specific configuration, which might be
+once the Baf base script is added to Fab).
