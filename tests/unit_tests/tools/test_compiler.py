@@ -14,25 +14,39 @@ from unittest import mock
 
 import pytest
 
-from fab.tools import (Category, CCompiler, FortranCompiler, Gcc, Gfortran, Icc,
-                       Ifort)
+from fab.tools import (Category, CCompiler, FortranCompiler,
+                       Gcc, Gfortran, Icc, Ifort, MpiGcc, MpiGfortran,
+                       MpiIcc, MpiIfort)
 
 
 def test_compiler():
     '''Test the compiler constructor.'''
-    cc = CCompiler("gcc", "gcc", "gnu")
+    cc = CCompiler("gcc", "gcc", "gnu", openmp_flag="-fopenmp")
     assert cc.category == Category.C_COMPILER
     assert cc._compile_flag == "-c"
     assert cc._output_flag == "-o"
     assert cc.flags == []
     assert cc.suite == "gnu"
+    assert not cc.mpi
+    assert cc.openmp_flag == "-fopenmp"
+    with pytest.raises(NotImplementedError) as err:
+        cc.parse_version_output(Category.FORTRAN_COMPILER, "NOT NEEDED")
+    assert ("The method `parse_version_output` must be provided using a mixin."
+            in str(err.value))
 
-    fc = FortranCompiler("gfortran", "gfortran", "gnu", "-J")
+    fc = FortranCompiler("gfortran", "gfortran", "gnu", openmp_flag="-fopenmp",
+                         module_folder_flag="-J")
     assert fc._compile_flag == "-c"
     assert fc._output_flag == "-o"
     assert fc.category == Category.FORTRAN_COMPILER
     assert fc.suite == "gnu"
     assert fc.flags == []
+    assert not fc.mpi
+    assert fc.openmp_flag == "-fopenmp"
+    with pytest.raises(NotImplementedError) as err:
+        fc.parse_version_output(Category.FORTRAN_COMPILER, "NOT NEEDED")
+    assert ("The method `parse_version_output` must be provided using a mixin."
+            in str(err.value))
 
 
 def test_compiler_check_available():
@@ -104,21 +118,31 @@ def test_compiler_with_env_fflags():
 
 def test_compiler_syntax_only():
     '''Tests handling of syntax only flags.'''
-    fc = FortranCompiler("gfortran", "gfortran", "gnu", "-J")
+    fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         openmp_flag="-fopenmp", module_folder_flag="-J")
     assert not fc.has_syntax_only
-    fc = FortranCompiler("gfortran", "gfortran", "gnu", "-J",
-                         syntax_only_flag=None)
+    fc = FortranCompiler("gfortran", "gfortran", "gnu", openmp_flag="-fopenmp",
+                         module_folder_flag="-J", syntax_only_flag=None)
     assert not fc.has_syntax_only
+    # Empty since no flag is defined
+    assert fc.openmp_flag == "-fopenmp"
 
-    fc = FortranCompiler("gfortran", "gfortran", "gnu", "-J",
+    fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         openmp_flag="-fopenmp",
+                         module_folder_flag="-J",
                          syntax_only_flag="-fsyntax-only")
     fc.set_module_output_path("/tmp")
     assert fc.has_syntax_only
     assert fc._syntax_only_flag == "-fsyntax-only"
     fc.run = mock.Mock()
-    fc.compile_file(Path("a.f90"), "a.o", syntax_only=True)
+    fc.compile_file(Path("a.f90"), "a.o", openmp=False, syntax_only=True)
     fc.run.assert_called_with(cwd=Path('.'),
                               additional_parameters=['-c', '-fsyntax-only',
+                                                     "-J", '/tmp', 'a.f90',
+                                                     '-o', 'a.o', ])
+    fc.compile_file(Path("a.f90"), "a.o", openmp=True, syntax_only=True)
+    fc.run.assert_called_with(cwd=Path('.'),
+                              additional_parameters=['-c', '-fopenmp', '-fsyntax-only',
                                                      "-J", '/tmp', 'a.f90',
                                                      '-o', 'a.o', ])
 
@@ -130,7 +154,7 @@ def test_compiler_module_output():
     fc.set_module_output_path("/module_out")
     assert fc._module_output_path == "/module_out"
     fc.run = mock.MagicMock()
-    fc.compile_file(Path("a.f90"), "a.o", syntax_only=True)
+    fc.compile_file(Path("a.f90"), "a.o", openmp=False, syntax_only=True)
     fc.run.assert_called_with(cwd=PosixPath('.'),
                               additional_parameters=['-c', '-J', '/module_out',
                                                      'a.f90', '-o', 'a.o'])
@@ -138,26 +162,32 @@ def test_compiler_module_output():
 
 def test_compiler_with_add_args():
     '''Tests that additional arguments are handled as expected.'''
-    fc = FortranCompiler("gfortran", "gfortran", "gnu",
+    fc = FortranCompiler("gfortran", "gfortran", suite="gnu",
+                         openmp_flag="-fopenmp",
                          module_folder_flag="-J")
     fc.set_module_output_path("/module_out")
     assert fc._module_output_path == "/module_out"
     fc.run = mock.MagicMock()
     with pytest.warns(UserWarning, match="Removing managed flag"):
         fc.compile_file(Path("a.f90"), "a.o", add_flags=["-J/b", "-O3"],
-                        syntax_only=True)
+                        openmp=False, syntax_only=True)
     # Notice that "-J/b" has been removed
     fc.run.assert_called_with(cwd=PosixPath('.'),
                               additional_parameters=['-c', "-O3",
                                                      '-J', '/module_out',
                                                      'a.f90', '-o', 'a.o'])
+    with pytest.warns(UserWarning,
+                      match="explicitly provided. OpenMP should be enabled in "
+                            "the BuildConfiguration"):
+        fc.compile_file(Path("a.f90"), "a.o",
+                        add_flags=["-fopenmp", "-O3"],
+                        openmp=True, syntax_only=True)
 
 
 def test_get_version_string():
     '''Tests the get_version_string() method.
     '''
     full_output = 'GNU Fortran (gcc) 6.1.0'
-
     c = Gfortran()
     with mock.patch.object(c, "run", mock.Mock(return_value=full_output)):
         assert c.get_version_string() == "6.1.0"
@@ -169,7 +199,7 @@ def test_get_version_1_part_version():
     If the version is just one integer, that is invalid and we must raise an
     error. '''
     full_output = dedent("""
-        GNU Fortran (gcc) 77
+        GNU Fortran (gcc) 777
         Copyright (C) 2022 Foo Software Foundation, Inc.
     """)
     expected_error = "Unexpected version output format for compiler"
@@ -217,13 +247,19 @@ def test_get_version_4_part_version():
         assert c.get_version() == (19, 0, 0, 117)
 
 
-def test_get_version_non_int_version_format():
+@pytest.mark.parametrize("version", ["5.15f.2",
+                                     ".0.5.1",
+                                     "0.5.1.",
+                                     "0.5..1"])
+def test_get_version_non_int_version_format(version):
     '''
     Tests the get_version() method with an invalid format.
     If the version contains non-number characters, we must raise an error.
+    TODO: the current code does not detect an error in case of `1.2..`,
+    i.e. a trailing ".".
     '''
-    full_output = dedent("""
-        GNU Fortran (gcc) 5.1f.2g (Foo Hat 4.8.5)
+    full_output = dedent(f"""
+        GNU Fortran (gcc) {version} (Foo Hat 4.8.5)
         Copyright (C) 2022 Foo Software Foundation, Inc.
     """)
     expected_error = "Unexpected version output format for compiler"
@@ -314,6 +350,16 @@ def test_gcc():
     assert gcc.name == "gcc"
     assert isinstance(gcc, CCompiler)
     assert gcc.category == Category.C_COMPILER
+    assert not gcc.mpi
+
+
+def test_mpi_gcc():
+    '''Tests the MPI enables gcc class.'''
+    mpi_gcc = MpiGcc()
+    assert mpi_gcc.name == "mpicc-gcc"
+    assert isinstance(mpi_gcc, CCompiler)
+    assert mpi_gcc.category == Category.C_COMPILER
+    assert mpi_gcc.mpi
 
 
 def test_gcc_get_version():
@@ -348,6 +394,16 @@ def test_gfortran():
     assert gfortran.name == "gfortran"
     assert isinstance(gfortran, FortranCompiler)
     assert gfortran.category == Category.FORTRAN_COMPILER
+    assert not gfortran.mpi
+
+
+def test_mpi_gfortran():
+    '''Tests the MPI enabled gfortran class.'''
+    mpi_gfortran = MpiGfortran()
+    assert mpi_gfortran.name == "mpif90-gfortran"
+    assert isinstance(mpi_gfortran, FortranCompiler)
+    assert mpi_gfortran.category == Category.FORTRAN_COMPILER
+    assert mpi_gfortran.mpi
 
 
 # Possibly overkill to cover so many gfortran versions but I had to go
@@ -449,6 +505,16 @@ def test_icc():
     assert icc.name == "icc"
     assert isinstance(icc, CCompiler)
     assert icc.category == Category.C_COMPILER
+    assert not icc.mpi
+
+
+def test_mpi_icc():
+    '''Tests the MPI enabled icc class.'''
+    mpi_icc = MpiIcc()
+    assert mpi_icc.name == "mpicc-icc"
+    assert isinstance(mpi_icc, CCompiler)
+    assert mpi_icc.category == Category.C_COMPILER
+    assert mpi_icc.mpi
 
 
 def test_icc_get_version():
@@ -483,6 +549,16 @@ def test_ifort():
     assert ifort.name == "ifort"
     assert isinstance(ifort, FortranCompiler)
     assert ifort.category == Category.FORTRAN_COMPILER
+    assert not ifort.mpi
+
+
+def test_mpi_ifort():
+    '''Tests the MPI enabled ifort class.'''
+    mpi_ifort = MpiIfort()
+    assert mpi_ifort.name == "mpif90-ifort"
+    assert isinstance(mpi_ifort, FortranCompiler)
+    assert mpi_ifort.category == Category.FORTRAN_COMPILER
+    assert mpi_ifort.mpi
 
 
 def test_ifort_get_version_14():
@@ -547,6 +623,24 @@ def test_ifort_get_version_with_icc_string():
         assert "Unexpected version output format for compiler" in str(err.value)
 
 
+@pytest.mark.parametrize("version", ["5.15f.2",
+                                     ".0.5.1",
+                                     "0.5.1.",
+                                     "0.5..1"])
+def test_ifort_get_version_invalid_version(version):
+    '''Tests the ifort class with an icc version output.'''
+    full_output = dedent(f"""
+        icc (ICC) {version} 20230609
+        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+
+    """)
+    ifort = Ifort()
+    with mock.patch.object(ifort, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            ifort.get_version()
+        assert "Unexpected version output format for compiler" in str(err.value)
+
+
 # ============================================================================
 def test_compiler_wrapper():
     '''Make sure we can easily create a compiler wrapper.'''
@@ -556,8 +650,13 @@ def test_compiler_wrapper():
             super().__init__(name="mpif90-intel",
                              exec_name="mpif90")
 
+        @property
+        def mpi(self):
+            return True
+
     mpif90 = MpiF90()
     assert mpif90.suite == "intel-classic"
     assert mpif90.category == Category.FORTRAN_COMPILER
     assert mpif90.name == "mpif90-intel"
     assert mpif90.exec_name == "mpif90"
+    assert mpif90.mpi
