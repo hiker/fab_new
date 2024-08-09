@@ -10,7 +10,7 @@ C file compilation.
 import logging
 import os
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
+from typing import cast, Dict, List, Optional, Tuple
 
 from fab import FabException
 from fab.artefacts import (ArtefactsGetter, ArtefactSet, ArtefactStore,
@@ -19,7 +19,7 @@ from fab.build_config import BuildConfig, FlagsConfig
 from fab.metrics import send_metric
 from fab.parse.c import AnalysedC
 from fab.steps import check_for_errors, run_mp, step
-from fab.tools import Category, Flags
+from fab.tools import Category, Compiler, Flags
 from fab.util import CompiledFile, log_or_dot, Timer, by_type
 
 logger = logging.getLogger(__name__)
@@ -126,6 +126,7 @@ def _compile_file(arg: Tuple[AnalysedC, MpCommonArgs]):
     if compiler.category != Category.C_COMPILER:
         raise RuntimeError(f"Unexpected tool '{compiler.name}' of category "
                            f"'{compiler.category}' instead of CCompiler")
+    compiler = cast(Compiler, compiler)
     with Timer() as timer:
         flags = Flags(mp_payload.flags.flags_for_path(path=analysed_file.fpath,
                                                       config=config))

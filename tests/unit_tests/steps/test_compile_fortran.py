@@ -48,7 +48,7 @@ def test_compile_cc_wrong_compiler(tool_box):
     with pytest.raises(RuntimeError) as err:
         process_file((None, mp_common_args))
     assert ("Unexpected tool 'mock_fortran_compiler' of category "
-            "'C_COMPILER' instead of FortranCompiler"in str(err.value))
+            "'C_COMPILER' instead of FortranCompiler" in str(err.value))
 
     with pytest.raises(RuntimeError) as err:
         handle_compiler_args(config)
