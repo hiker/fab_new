@@ -108,7 +108,7 @@ class CompilerWrapper(Compiler):
     @property
     def flags(self) -> Flags:
         ''':returns: the flags to be used with this tool.'''
-        return self._compiler.flags + self._flags
+        return Flags(self._compiler.flags + self._flags)
 
     @property
     def suite(self) -> str:
@@ -168,6 +168,8 @@ class CompilerWrapper(Compiler):
 
         orig_compiler_name = self._compiler.exec_name
         self._compiler.change_exec_name(self.exec_name)
+        if add_flags is None:
+            add_flags = []
         if isinstance(self._compiler, FortranCompiler):
             self._compiler.compile_file(input_file, output_file, openmp=openmp,
                                         add_flags=self.flags + add_flags,
