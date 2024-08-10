@@ -108,7 +108,7 @@ class CompilerWrapper(Compiler):
     @property
     def flags(self) -> Flags:
         ''':returns: the flags to be used with this tool.'''
-        return self._compiler.flags
+        return self._compiler.flags + self._flags
 
     @property
     def suite(self) -> str:
@@ -170,7 +170,7 @@ class CompilerWrapper(Compiler):
         self._compiler.change_exec_name(self.exec_name)
         if isinstance(self._compiler, FortranCompiler):
             self._compiler.compile_file(input_file, output_file, openmp=openmp,
-                                        add_flags=add_flags,
+                                        add_flags=self.flags + add_flags,
                                         syntax_only=syntax_only,
                                         )
         else:
@@ -178,7 +178,7 @@ class CompilerWrapper(Compiler):
                 raise RuntimeError(f"Syntax-only cannot be used with compiler "
                                    f"'{self.name}'.")
             self._compiler.compile_file(input_file, output_file, openmp=openmp,
-                                        add_flags=add_flags
+                                        add_flags=self.flags+add_flags
                                         )
         self._compiler.change_exec_name(orig_compiler_name)
 

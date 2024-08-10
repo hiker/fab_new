@@ -236,6 +236,25 @@ def test_compiler_wrapper_flags():
     assert mpicc.flags == ["-a", "-b"]
     assert mpicc.openmp_flag == gcc.openmp_flag
 
+    # Adding flags to the wrapper should not affect the wrapped compiler:
+    mpicc.add_flags(["-d", "-e"])
+    assert gcc.flags == ["-a", "-b"]
+    # And the compiler wrapper should reports the wrapped compiler's flag
+    # followed by the wrapper flag (i.e. the wrapper flag can therefore
+    # overwrite the wrapped compiler's flags)
+    assert mpicc.flags == ["-a", "-b", "-d", "-e"]
+
+    # Check that the flags are assembled in the right order in the
+    # actual compiler call: first the wrapper compiler flag, then
+    # the wrapper flag, then additional flags
+    with mock.patch.object(mpicc._compiler, "run", mock.MagicMock()):
+        mpicc.compile_file(Path("a.f90"), "a.o", add_flags=["-f"],
+                           openmp=True)
+        mpicc._compiler.run.assert_called_with(
+                cwd=PosixPath('.'),
+                additional_parameters=["-c", "-fopenmp", "-a", "-b", "-d",
+                                       "-e", "-f", "a.f90", "-o", "a.o"])
+
 
 def test_compiler_wrapper_mpi_gcc():
     '''Tests the MPI enables gcc class.'''
