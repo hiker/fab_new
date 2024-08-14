@@ -105,7 +105,8 @@ def test_compiler_hash_invalid_version():
     with mock.patch.object(cc, "run", mock.Mock(return_value='foo v1')):
         with pytest.raises(RuntimeError) as err:
             cc.get_hash()
-        assert "Unexpected version output format for compiler 'gcc'" in str(err.value)
+        assert ("Unexpected version output format for compiler 'gcc'"
+                in str(err.value))
 
 
 def test_compiler_with_env_fflags():
@@ -121,29 +122,49 @@ def test_compiler_syntax_only():
     '''Tests handling of syntax only flags.'''
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
                          openmp_flag="-fopenmp", module_folder_flag="-J")
+    # Empty since no flag is defined
     assert not fc.has_syntax_only
+
     fc = FortranCompiler("gfortran", "gfortran", "gnu", openmp_flag="-fopenmp",
                          module_folder_flag="-J", syntax_only_flag=None)
-    assert not fc.has_syntax_only
     # Empty since no flag is defined
-    assert fc.openmp_flag == "-fopenmp"
+    assert not fc.has_syntax_only
 
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J",
                          syntax_only_flag="-fsyntax-only")
-    fc.set_module_output_path("/tmp")
     assert fc.has_syntax_only
     assert fc._syntax_only_flag == "-fsyntax-only"
+
+
+def test_compiler_without_openmp():
+    '''Tests that the openmp flag is not used when openmp is not enabled. '''
+    fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         openmp_flag="-fopenmp",
+                         module_folder_flag="-J",
+                         syntax_only_flag="-fsyntax-only")
+    fc.set_module_output_path("/tmp")
     fc.run = mock.Mock()
     fc.compile_file(Path("a.f90"), "a.o", openmp=False, syntax_only=True)
     fc.run.assert_called_with(cwd=Path('.'),
                               additional_parameters=['-c', '-fsyntax-only',
                                                      "-J", '/tmp', 'a.f90',
                                                      '-o', 'a.o', ])
-    fc.compile_file(Path("a.f90"), "a.o", openmp=True, syntax_only=True)
+
+
+def test_compiler_with_openmp():
+    '''Tests that the openmp flag is used as expected if openmp is enabled.
+    '''
+    fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         openmp_flag="-fopenmp",
+                         module_folder_flag="-J",
+                         syntax_only_flag="-fsyntax-only")
+    fc.set_module_output_path("/tmp")
+    fc.run = mock.Mock()
+    fc.compile_file(Path("a.f90"), "a.o", openmp=True, syntax_only=False)
     fc.run.assert_called_with(cwd=Path('.'),
-                              additional_parameters=['-c', '-fopenmp', '-fsyntax-only',
+                              additional_parameters=['-c', '-fopenmp',
                                                      "-J", '/tmp', 'a.f90',
                                                      '-o', 'a.o', ])
 
@@ -601,7 +622,7 @@ def test_ifort_get_version_invalid_version(version):
         Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
 
     """)
-    icc = Icc()
+    icc = Ifort()
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icc.get_version()

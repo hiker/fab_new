@@ -170,6 +170,14 @@ def test_compiler_wrapper_fortran_with_add_args():
                                                        '-fsyntax-only',
                                                        '-J', '/module_out',
                                                        'a.f90', '-o', 'a.o'])
+
+
+def test_compiler_wrapper_fortran_with_add_args_unnecessary_openmp():
+    '''Tests that additional arguments are handled as expected in
+    a wrapper if also the openmp flags are specified.'''
+    mpif90 = ToolRepository().get_tool(Category.FORTRAN_COMPILER,
+                                       "mpif90-gfortran")
+    mpif90.set_module_output_path("/module_out")
     with mock.patch.object(mpif90._compiler, "run", mock.MagicMock()):
         with pytest.warns(UserWarning,
                           match="explicitly provided. OpenMP should be "
@@ -222,9 +230,9 @@ def test_compiler_wrapper_c_with_add_args():
                                        'a.f90', '-o', 'a.o'])
 
 
-def test_compiler_wrapper_flags():
+def test_compiler_wrapper_flags_independent():
     '''Tests that flags set in the base compiler will be accessed in the
-    wrapper.'''
+    wrapper, but not the other way round.'''
     gcc = Gcc()
     mpicc = Mpicc(gcc)
     # pylint: disable-next=use-implicit-booleaness-not-comparison
@@ -244,6 +252,15 @@ def test_compiler_wrapper_flags():
     # overwrite the wrapped compiler's flags)
     assert mpicc.flags == ["-a", "-b", "-d", "-e"]
 
+
+def test_compiler_wrapper_flags_with_add_arg():
+    '''Tests that flags set in the base compiler will be accessed in the
+    wrapper if also additional flags are specified.'''
+    gcc = Gcc()
+    mpicc = Mpicc(gcc)
+    gcc.add_flags(["-a", "-b"])
+    mpicc.add_flags(["-d", "-e"])
+
     # Check that the flags are assembled in the right order in the
     # actual compiler call: first the wrapper compiler flag, then
     # the wrapper flag, then additional flags
@@ -254,6 +271,25 @@ def test_compiler_wrapper_flags():
                 cwd=PosixPath('.'),
                 additional_parameters=["-c", "-fopenmp", "-a", "-b", "-d",
                                        "-e", "-f", "a.f90", "-o", "a.o"])
+
+
+def test_compiler_wrapper_flags_without_add_arg():
+    '''Tests that flags set in the base compiler will be accessed in the
+    wrapper if no additional flags are specified.'''
+    gcc = Gcc()
+    mpicc = Mpicc(gcc)
+    gcc.add_flags(["-a", "-b"])
+    mpicc.add_flags(["-d", "-e"])
+    # Check that the flags are assembled in the right order in the
+    # actual compiler call: first the wrapper compiler flag, then
+    # the wrapper flag, then additional flags
+    with mock.patch.object(mpicc._compiler, "run", mock.MagicMock()):
+        # Test if no add_flags are specified:
+        mpicc.compile_file(Path("a.f90"), "a.o", openmp=True)
+        mpicc._compiler.run.assert_called_with(
+                cwd=PosixPath('.'),
+                additional_parameters=["-c", "-fopenmp", "-a", "-b", "-d",
+                                       "-e", "a.f90", "-o", "a.o"])
 
 
 def test_compiler_wrapper_mpi_gcc():
