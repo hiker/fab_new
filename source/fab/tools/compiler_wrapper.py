@@ -101,6 +101,11 @@ class CompilerWrapper(Compiler):
         return self._is_available
 
     @property
+    def compiler(self) -> Compiler:
+        ''':returns: the compiler that is wrapped by this CompilerWrapper.'''
+        return self._compiler
+
+    @property
     def category(self) -> Category:
         ''':returns: the category of this tool.'''
         return self._compiler.category
@@ -155,8 +160,8 @@ class CompilerWrapper(Compiler):
                      syntax_only: Optional[bool] = None):
         # pylint: disable=too-many-arguments
         '''Compiles a file using the wrapper compiler. It will temporarily
-        change the name of the wrapped compiler, and then calls the original
-        compiler (to get all its parameters)
+        change the executable name of the wrapped compiler, and then calls
+        the original compiler (to get all its parameters)
 
         :param input_file: the name of the input file.
         :param output_file: the name of the output file.
