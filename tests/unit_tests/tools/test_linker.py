@@ -137,10 +137,13 @@ def test_linker_add_compiler_flag():
         ['no-compiler.exe', '-some-other-flag', 'a.o', '-o', 'a.out'],
         capture_output=True, env=None, cwd=None, check=False)
 
+
 # The linker base class should provide a dictionary that maps strings (which are
 # 'standard' library names) to a list of linker flags. E.g.
 #
 #    'netcdf' -> ['$(nf-config --flibs)', '($nc-config --libs)']
+# (and Fab as default would likely provide none? Or Maybe just say netcdf as an
+# example, since this is reasonable portable).
 def test_linker_get_lib_flags(mock_c_compiler):
     '''Linker should provide a map of 'standard' library names to a list of
     linker flags
@@ -161,9 +164,7 @@ def test_linker_get_lib_flags_unknown(mock_c_compiler):
     assert "Unknown library name" in str(err.value)
 
 
-# There must be function to add and remove libraries (and Fab as default would
-# likely provide none? Or Maybe just say netcdf as an example, since this is
-# reasonable portable). Site-specific scripts will want to modify the settings
+# There must be function to add and remove libraries
 def test_linker_add_library_flags(mock_c_compiler):
     '''Linker should provide a way to add a new set of flags for a library '''
     linker = Linker(compiler=mock_c_compiler)
@@ -172,6 +173,33 @@ def test_linker_add_library_flags(mock_c_compiler):
     # Make sure we can get it back. The order should be maintained.
     result = linker.get_lib_flags('xios')
     assert result == ['-L', 'xios/lib', '-I', 'xios/inc']
+
+
+# There must be function to remove libraries
+def test_linker_remove_library_flags(mock_c_compiler):
+    '''Linker should provide a way to add a new set of flags for a library '''
+    linker = Linker(compiler=mock_c_compiler)
+    linker.remove_lib_flags('netcdf')
+
+    with pytest.raises(RuntimeError) as err:
+        linker.get_lib_flags('netcdf')
+    assert "Unknown library name" in str(err.value)
+
+
+# Site-specific scripts will want to modify the settings
+def test_linker_replace_library_flags(mock_c_compiler):
+    '''Linker should provide a way to replace the default flags for a library '''
+    linker = Linker(compiler=mock_c_compiler)
+    # Initially we have the default netcdf flags
+    result = linker.get_lib_flags('netcdf')
+    assert result == ['$(nf-config --flibs)', '($nc-config --libs)']
+
+    # Replace them with another set of flags.
+    linker.add_lib_flags('netcdf', ['-L', 'netcdf/lib', '-I', 'netcdf/inc'])
+
+    # Test that we can get our custom flags back
+    result = linker.get_lib_flags('netcdf')
+    assert result == ['-L', 'netcdf/lib', '-I', 'netcdf/inc']
 
 
 # # An application then only specifies which libraries it needs to link with (and
@@ -190,5 +218,3 @@ def test_linker_add_library_flags(mock_c_compiler):
 #     tool_run.assert_called_with(
 #         ['mock_c_compiler.exe', '-flag', '/xios/flag', 'a.o', '-o', 'a.out'],
 #         capture_output=True, env=None, cwd=None, check=False)
-
-

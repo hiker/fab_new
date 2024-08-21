@@ -81,7 +81,21 @@ class Linker(CompilerSuiteTool):
             raise RuntimeError(f"Unknown library name: '{lib}'")
 
     def add_lib_flags(self, lib: str, flags: List[str]):
+        '''Add a set of flags for a standard library
+
+        :param lib: the library name
+        :param flags: the flags to use with the library
+
+        '''
         self.env_flags[lib] = flags
+
+    def remove_lib_flags(self, lib: str):
+        '''Add a set of flags for a standard library
+
+        :param lib: the library name
+
+        '''
+        del self.env_flags[lib]
 
     def link(self, input_files: List[Path], output_file: Path,
              openmp: bool,
