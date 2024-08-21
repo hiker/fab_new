@@ -146,7 +146,8 @@ def test_linker_get_lib_flags(mock_c_compiler):
     linker flags
     '''
     linker = Linker(compiler=mock_c_compiler)
-    assert linker.get_lib_flags('netcdf') == ['$(nf-config --flibs)', '($nc-config --libs)']
+    result = linker.get_lib_flags('netcdf')
+    assert result == ['$(nf-config --flibs)', '($nc-config --libs)']
 
 
 # If a library is specified that is unknown, raise an error.
@@ -160,12 +161,17 @@ def test_linker_get_lib_flags_unknown(mock_c_compiler):
     assert "Unknown library name" in str(err.value)
 
 
-# # There must be function to add and remove libraries (and Fab as default would
-# # likely provide none? Or Maybe just say netcdf as an example, since this is
-# # reasonable portable). Site-specific scripts will want to modify the settings
-# def test_linker_add_library_flags(mock_c_compiler):
-#     linker = Linker(compiler=mock_c_compiler)
-#     linker.add_lib_flags('xios', ['-L', 'xios/lib', '-l', 'xios/lib'])
+# There must be function to add and remove libraries (and Fab as default would
+# likely provide none? Or Maybe just say netcdf as an example, since this is
+# reasonable portable). Site-specific scripts will want to modify the settings
+def test_linker_add_library_flags(mock_c_compiler):
+    '''Linker should provide a way to add a new set of flags for a library '''
+    linker = Linker(compiler=mock_c_compiler)
+    linker.add_lib_flags('xios', ['-L', 'xios/lib', '-I', 'xios/inc'])
+
+    # Make sure we can get it back. The order should be maintained.
+    result = linker.get_lib_flags('xios')
+    assert result == ['-L', 'xios/lib', '-I', 'xios/inc']
 
 
 # # An application then only specifies which libraries it needs to link with (and

@@ -80,6 +80,9 @@ class Linker(CompilerSuiteTool):
         except KeyError:
             raise RuntimeError(f"Unknown library name: '{lib}'")
 
+    def add_lib_flags(self, lib: str, flags: List[str]):
+        self.env_flags[lib] = flags
+
     def link(self, input_files: List[Path], output_file: Path,
              openmp: bool,
              add_libs: Optional[List[str]] = None) -> str:
