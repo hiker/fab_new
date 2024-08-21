@@ -52,7 +52,7 @@ class Linker(CompilerSuiteTool):
         self.flags.extend(os.getenv("LDFLAGS", "").split())
 
         # Maintain a set of flags for common libraries.
-        self.env_flags = {
+        self.lib_flags = {
             'netcdf': ['$(nf-config --flibs)', '($nc-config --libs)']
         }
 
@@ -76,7 +76,7 @@ class Linker(CompilerSuiteTool):
         :raises RuntimeError: if lib is not recognised
         '''
         try:
-            return self.env_flags[lib]
+            return self.lib_flags[lib]
         except KeyError:
             raise RuntimeError(f"Unknown library name: '{lib}'")
 
@@ -87,7 +87,7 @@ class Linker(CompilerSuiteTool):
         :param flags: the flags to use with the library
 
         '''
-        self.env_flags[lib] = flags
+        self.lib_flags[lib] = flags
 
     def remove_lib_flags(self, lib: str):
         '''Add a set of flags for a standard library
@@ -95,18 +95,23 @@ class Linker(CompilerSuiteTool):
         :param lib: the library name
 
         '''
-        del self.env_flags[lib]
+        try:
+            del self.lib_flags[lib]
+        except KeyError:
+            pass
 
     def link(self, input_files: List[Path], output_file: Path,
              openmp: bool,
-             add_libs: Optional[List[str]] = None) -> str:
+             add_libs: Optional[List[str]] = None,
+             add_flags: Optional[List[str]] = None) -> str:
         '''Executes the linker with the specified input files,
         creating `output_file`.
 
         :param input_files: list of input files to link.
         :param output_file: output file.
         :param openm: whether OpenMP is requested or not.
-        :param add_libs: additional linker flags.
+        :param add_libs: additional libraries to link with.
+        :param add_flags: additional linker flags.
 
         :returns: the stdout of the link command
         '''
@@ -119,7 +124,9 @@ class Linker(CompilerSuiteTool):
             params = []
         # TODO: why are the .o files sorted? That shouldn't matter
         params.extend(sorted(map(str, input_files)))
-        if add_libs:
-            params += add_libs
+        for lib in add_libs or []:
+            params += self.lib_flags[lib]
+        if add_flags:
+            params += add_flags
         params.extend([self._output_flag, str(output_file)])
         return self.run(params)

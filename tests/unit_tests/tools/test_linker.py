@@ -100,7 +100,7 @@ def test_linker_c_with_libraries(mock_c_compiler):
     '''Test the link command line when additional libraries are specified.'''
     linker = Linker(compiler=mock_c_compiler)
     with mock.patch.object(linker, "run") as link_run:
-        linker.link([Path("a.o")], Path("a.out"), add_libs=["-L", "/tmp"],
+        linker.link([Path("a.o")], Path("a.out"), add_flags=["-L", "/tmp"],
                     openmp=True)
     link_run.assert_called_with(['-fopenmp', 'a.o', '-L', '/tmp',
                                  '-o', 'a.out'])
@@ -177,13 +177,19 @@ def test_linker_add_library_flags(mock_c_compiler):
 
 # There must be function to remove libraries
 def test_linker_remove_library_flags(mock_c_compiler):
-    '''Linker should provide a way to add a new set of flags for a library '''
+    '''Linker should provide a way to remove the flags for a library '''
     linker = Linker(compiler=mock_c_compiler)
     linker.remove_lib_flags('netcdf')
 
     with pytest.raises(RuntimeError) as err:
         linker.get_lib_flags('netcdf')
     assert "Unknown library name" in str(err.value)
+
+
+def test_linker_remove_unknown_library_flags(mock_c_compiler):
+    '''Linker should allow removing flags for unknown library without error'''
+    linker = Linker(compiler=mock_c_compiler)
+    linker.remove_lib_flags('unkown')
 
 
 # Site-specific scripts will want to modify the settings
@@ -202,19 +208,18 @@ def test_linker_replace_library_flags(mock_c_compiler):
     assert result == ['-L', 'netcdf/lib', '-I', 'netcdf/inc']
 
 
-# # An application then only specifies which libraries it needs to link with (and
-# # in what order), and the linker then adds the correct flags during the linking
-# # stage.
-# def test_linker_add_compiler_flags_by_lib(mock_c_compiler):
-#     '''Make sure linker flags are added for the required libraries:
-#     '''
-#     linker = Linker(compiler=mock_c_compiler)
-#     linker.add_lib_flags('xios', ['-flag', '/xios/flag'])
-#     linker.add_lib_flags('netcdf', ['$(nf-config --flibs)', '($nc-config --libs)'])
-#     mock_result = mock.Mock(returncode=0)
-#     with mock.patch('fab.tools.tool.subprocess.run',
-#                     return_value=mock_result) as tool_run:
-#         linker.link([Path("a.o")], Path("a.out"), libs=['xios'], openmp=False)
-#     tool_run.assert_called_with(
-#         ['mock_c_compiler.exe', '-flag', '/xios/flag', 'a.o', '-o', 'a.out'],
-#         capture_output=True, env=None, cwd=None, check=False)
+# An application then only specifies which libraries it needs to link with (and
+# in what order), and the linker then adds the correct flags during the linking
+# stage.
+def test_linker_add_compiler_flags_by_lib(mock_c_compiler):
+    '''Make sure linker flags are added for the required libraries:
+    '''
+    linker = Linker(compiler=mock_c_compiler)
+    linker.add_lib_flags('xios', ['-flag', '/xios/flag'])
+    mock_result = mock.Mock(returncode=0)
+    with mock.patch('fab.tools.tool.subprocess.run',
+                    return_value=mock_result) as tool_run:
+        linker.link([Path("a.o")], Path("a.out"), add_libs=['xios'], openmp=False)
+    tool_run.assert_called_with(
+        ['mock_c_compiler.exe', 'a.o', '-flag', '/xios/flag', '-o', 'a.out'],
+        capture_output=True, env=None, cwd=None, check=False)
