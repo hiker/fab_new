@@ -176,6 +176,12 @@ class CompilerWrapper(Compiler):
         if add_flags is None:
             add_flags = []
         if self._compiler.category is Category.FORTRAN_COMPILER:
+            # Mypy complains that self._compiler does not take the syntax
+            # only parameter. Since we know it's a FortranCompiler.
+            # do a cast to tell mypy that this is now a Fortran compiler
+            # (or a CompilerWrapper in case of nested CompilerWrappers,
+            # which also supports the syntax_only flag anyway)
+            self._compiler = cast(FortranCompiler, self._compiler)
             self._compiler.compile_file(input_file, output_file, openmp=openmp,
                                         add_flags=self.flags + add_flags,
                                         syntax_only=syntax_only,
