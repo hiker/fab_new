@@ -175,7 +175,7 @@ class CompilerWrapper(Compiler):
         self._compiler.change_exec_name(self.exec_name)
         if add_flags is None:
             add_flags = []
-        if isinstance(self._compiler, FortranCompiler):
+        if self._compiler.category is Category.FORTRAN_COMPILER:
             self._compiler.compile_file(input_file, output_file, openmp=openmp,
                                         add_flags=self.flags + add_flags,
                                         syntax_only=syntax_only,
