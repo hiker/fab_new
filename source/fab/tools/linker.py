@@ -52,7 +52,7 @@ class Linker(CompilerSuiteTool):
         self.flags.extend(os.getenv("LDFLAGS", "").split())
 
         # Maintain a set of flags for common libraries.
-        self._lib_flags = {}
+        self._lib_flags: dict[str, List[str]] = {}
         # Include netcdf as an example, since it is reasonable portable
         self.add_lib_flags(
             'netcdf',
