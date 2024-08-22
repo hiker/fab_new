@@ -9,7 +9,7 @@
 
 import os
 from pathlib import Path
-from typing import cast, List, Optional
+from typing import cast, Dict, List, Optional
 
 from fab.tools.category import Category
 from fab.tools.compiler import Compiler
@@ -52,7 +52,7 @@ class Linker(CompilerSuiteTool):
         self.flags.extend(os.getenv("LDFLAGS", "").split())
 
         # Maintain a set of flags for common libraries.
-        self._lib_flags: dict[str, List[str]] = {}
+        self._lib_flags: Dict[str, List[str]] = {}
         # Include netcdf as an example, since it is reasonable portable
         self.add_lib_flags(
             'netcdf',
