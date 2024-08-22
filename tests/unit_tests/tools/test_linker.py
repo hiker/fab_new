@@ -102,7 +102,7 @@ def test_linker_get_lib_flags_unknown(mock_c_compiler):
     linker = Linker(compiler=mock_c_compiler)
     with pytest.raises(RuntimeError) as err:
         linker.get_lib_flags("unknown")
-    assert "Unknown library name" in str(err.value)
+    assert "Unknown library name: 'unknown'" in str(err.value)
 
 
 def test_linker_add_lib_flags(mock_c_compiler):
@@ -138,7 +138,7 @@ def test_linker_remove_lib_flags(mock_c_compiler):
 
     with pytest.raises(RuntimeError) as err:
         linker.get_lib_flags("netcdf")
-    assert "Unknown library name" in str(err.value)
+    assert "Unknown library name: 'netcdf'" in str(err.value)
 
 
 def test_linker_remove_lib_flags_unknown(mock_c_compiler):
@@ -170,8 +170,7 @@ def test_linker_c_with_libraries(mock_c_compiler):
     link_run.assert_called_with(
         ["-fopenmp", "a.o",
          "$(nf-config --flibs)", "($nc-config --libs)",
-         "-o", "a.out"]
-    )
+         "-o", "a.out"])
 
 
 def test_linker_c_with_custom_libraries(mock_c_compiler):
@@ -186,8 +185,21 @@ def test_linker_c_with_custom_libraries(mock_c_compiler):
         ["-fopenmp", "a.o",
          "-q", "/tmp", "-j",
          "$(nf-config --flibs)", "($nc-config --libs)",
-         "-o", "a.out"]
-    )
+         "-o", "a.out"])
+
+
+def test_linker_c_with_unknown_library(mock_c_compiler):
+    """Test the link command raises an error when unknow libraries are
+    specified.
+    """
+    linker = Linker(compiler=mock_c_compiler)\
+
+    with pytest.raises(RuntimeError) as err:
+        # Try to use "customlib" when we haven't added it to the linker
+        linker.link([Path("a.o")], Path("a.out"),
+                    libs=["netcdf", "customlib"], openmp=True)
+
+    assert "Unknown library name: 'customlib'" in str(err.value)
 
 
 def test_compiler_linker_add_compiler_flag(mock_c_compiler):

@@ -52,9 +52,12 @@ class Linker(CompilerSuiteTool):
         self.flags.extend(os.getenv("LDFLAGS", "").split())
 
         # Maintain a set of flags for common libraries.
-        self._lib_flags = {
-            'netcdf': ['$(nf-config --flibs)', '($nc-config --libs)']
-        }
+        self._lib_flags = {}
+        # Include netcdf as an example, since it is reasonable portable
+        self.add_lib_flags(
+            'netcdf',
+            ['$(nf-config --flibs)', '($nc-config --libs)']
+        )
 
     def check_available(self) -> bool:
         '''
@@ -85,7 +88,6 @@ class Linker(CompilerSuiteTool):
 
         :param lib: the library name
         :param flags: the flags to use with the library
-
         '''
         # Make a copy to avoid modifying the caller's list
         self._lib_flags[lib] = flags[:]
@@ -94,7 +96,6 @@ class Linker(CompilerSuiteTool):
         '''Add a set of flags for a standard library
 
         :param lib: the library name
-
         '''
         try:
             del self._lib_flags[lib]
@@ -125,8 +126,9 @@ class Linker(CompilerSuiteTool):
             params = []
         # TODO: why are the .o files sorted? That shouldn't matter
         params.extend(sorted(map(str, input_files)))
-        for lib in libs or []:
-            params.extend(self._lib_flags[lib])
+
+        for lib in (libs or []):
+            params.extend(self.get_lib_flags(lib))
         if add_flags:
             params.extend(add_flags)
         params.extend([self._output_flag, str(output_file)])
