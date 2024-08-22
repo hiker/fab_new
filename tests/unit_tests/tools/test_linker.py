@@ -18,8 +18,7 @@ from fab.tools import (Category, Linker)
 def test_linker(mock_c_compiler, mock_fortran_compiler):
     '''Test the linker constructor.'''
 
-    linker = Linker(name="my_linker", exec_name="my_linker.exe",
-                    suite="suite")
+    linker = Linker(name="my_linker", exec_name="my_linker.exe", suite="suite")
     assert linker.category == Category.LINKER
     assert linker.name == "my_linker"
     assert linker.exec_name == "my_linker.exe"
@@ -83,34 +82,119 @@ def test_linker_check_available(mock_c_compiler):
         assert linker.check_available() is False
 
 
+# ====================
+# Managing lib flags:
+# ====================
+def test_linker_get_lib_flags(mock_c_compiler):
+    """Linker should provide a map of library names, each leading to a list of
+    linker flags
+    """
+    linker = Linker(compiler=mock_c_compiler)
+    # netcdf is built in to the linker, since it is reasonable portable
+    result = linker.get_lib_flags("netcdf")
+    assert result == ["$(nf-config --flibs)", "($nc-config --libs)"]
+
+
+def test_linker_get_lib_flags_unknown(mock_c_compiler):
+    """Linker should raise an error if flags are requested for a library that is
+    unknown
+    """
+    linker = Linker(compiler=mock_c_compiler)
+    with pytest.raises(RuntimeError) as err:
+        linker.get_lib_flags("unknown")
+    assert "Unknown library name" in str(err.value)
+
+
+def test_linker_add_lib_flags(mock_c_compiler):
+    """Linker should provide a way to add a new set of flags for a library"""
+    linker = Linker(compiler=mock_c_compiler)
+    linker.add_lib_flags("xios", ["-L", "xios/lib", "-I", "xios/inc"])
+
+    # Make sure we can get it back. The order should be maintained.
+    result = linker.get_lib_flags("xios")
+    assert result == ["-L", "xios/lib", "-I", "xios/inc"]
+
+
+def test_linker_add_lib_flags_overwrite(mock_c_compiler):
+    """Linker should provide a way to replace the default flags for a library"""
+    linker = Linker(compiler=mock_c_compiler)
+
+    # Initially we have the default netcdf flags
+    result = linker.get_lib_flags("netcdf")
+    assert result == ["$(nf-config --flibs)", "($nc-config --libs)"]
+
+    # Replace them with another set of flags.
+    linker.add_lib_flags("netcdf", ["-L", "netcdf/lib", "-I", "netcdf/inc"])
+
+    # Test that we can see our custom flags
+    result = linker.get_lib_flags("netcdf")
+    assert result == ["-L", "netcdf/lib", "-I", "netcdf/inc"]
+
+
+def test_linker_remove_lib_flags(mock_c_compiler):
+    """Linker should provide a way to remove the flags for a library"""
+    linker = Linker(compiler=mock_c_compiler)
+    linker.remove_lib_flags("netcdf")
+
+    with pytest.raises(RuntimeError) as err:
+        linker.get_lib_flags("netcdf")
+    assert "Unknown library name" in str(err.value)
+
+
+def test_linker_remove_lib_flags_unknown(mock_c_compiler):
+    """Linker should silently allow removing flags for unknown library"""
+    linker = Linker(compiler=mock_c_compiler)
+    linker.remove_lib_flags("unkown")
+
+
+# ====================
+# Linking:
+# ====================
 def test_linker_c(mock_c_compiler):
-    '''Test the link command line when no additional libraries are
-    specified.'''
+    '''Test the link command line when no additional libraries are specified.'''
     linker = Linker(compiler=mock_c_compiler)
     mock_result = mock.Mock(returncode=0)
     with mock.patch('fab.tools.tool.subprocess.run',
                     return_value=mock_result) as tool_run:
         linker.link([Path("a.o")], Path("a.out"), openmp=False)
     tool_run.assert_called_with(
-        ["mock_c_compiler.exe", 'a.o', '-o', 'a.out'], capture_output=True,
-        env=None, cwd=None, check=False)
+        ["mock_c_compiler.exe", "a.o", "-o", "a.out"],
+        capture_output=True, env=None, cwd=None, check=False)
 
 
 def test_linker_c_with_libraries(mock_c_compiler):
-    '''Test the link command line when additional libraries are specified.'''
+    """Test the link command line when additional libraries are specified."""
     linker = Linker(compiler=mock_c_compiler)
     with mock.patch.object(linker, "run") as link_run:
-        linker.link([Path("a.o")], Path("a.out"), add_flags=["-L", "/tmp"],
-                    openmp=True)
-    link_run.assert_called_with(['-fopenmp', 'a.o', '-L', '/tmp',
-                                 '-o', 'a.out'])
+        linker.link([Path("a.o")], Path("a.out"), libs=["netcdf"], openmp=True)
+    link_run.assert_called_with(
+        ["-fopenmp", "a.o",
+         "$(nf-config --flibs)", "($nc-config --libs)",
+         "-o", "a.out"]
+    )
+
+
+def test_linker_c_with_custom_libraries(mock_c_compiler):
+    """Test the link command line when additional libraries are specified."""
+    linker = Linker(compiler=mock_c_compiler)
+    linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+    with mock.patch.object(linker, "run") as link_run:
+        linker.link([Path("a.o")], Path("a.out"),
+                    libs=["customlib", "netcdf"], openmp=True)
+    # The order of the 'libs' list should be maintained
+    link_run.assert_called_with(
+        ["-fopenmp", "a.o",
+         "-q", "/tmp", "-j",
+         "$(nf-config --flibs)", "($nc-config --libs)",
+         "-o", "a.out"]
+    )
 
 
 def test_compiler_linker_add_compiler_flag(mock_c_compiler):
     '''Test that a flag added to the compiler will be automatically
-    added to the link line (even if the flags are modified after
-    creating the linker ... in case that the user specifies additional
-    flags after creating the linker).'''
+    added to the link line (even if the flags are modified after creating the
+    linker ... in case that the user specifies additional flags after creating
+    the linker).'''
 
     linker = Linker(compiler=mock_c_compiler)
     mock_c_compiler.flags.append("-my-flag")
@@ -124,8 +208,8 @@ def test_compiler_linker_add_compiler_flag(mock_c_compiler):
 
 
 def test_linker_add_compiler_flag():
-    '''Make sure linker flags work if a linker is created without
-    a compiler:
+    '''Make sure ad-hoc linker flags work if a linker is created without a
+    compiler:
     '''
     linker = Linker("no-compiler", "no-compiler.exe", "suite")
     linker.flags.append("-some-other-flag")
@@ -135,91 +219,4 @@ def test_linker_add_compiler_flag():
         linker.link([Path("a.o")], Path("a.out"), openmp=False)
     tool_run.assert_called_with(
         ['no-compiler.exe', '-some-other-flag', 'a.o', '-o', 'a.out'],
-        capture_output=True, env=None, cwd=None, check=False)
-
-
-# The linker base class should provide a dictionary that maps strings (which are
-# 'standard' library names) to a list of linker flags. E.g.
-#
-#    'netcdf' -> ['$(nf-config --flibs)', '($nc-config --libs)']
-# (and Fab as default would likely provide none? Or Maybe just say netcdf as an
-# example, since this is reasonable portable).
-def test_linker_get_lib_flags(mock_c_compiler):
-    '''Linker should provide a map of 'standard' library names to a list of
-    linker flags
-    '''
-    linker = Linker(compiler=mock_c_compiler)
-    result = linker.get_lib_flags('netcdf')
-    assert result == ['$(nf-config --flibs)', '($nc-config --libs)']
-
-
-# If a library is specified that is unknown, raise an error.
-def test_linker_get_lib_flags_unknown(mock_c_compiler):
-    '''Linker should raise an error if flags are requested for a library that is
-    unknown
-    '''
-    linker = Linker(compiler=mock_c_compiler)
-    with pytest.raises(RuntimeError) as err:
-        linker.get_lib_flags('unknown')
-    assert "Unknown library name" in str(err.value)
-
-
-# There must be function to add and remove libraries
-def test_linker_add_library_flags(mock_c_compiler):
-    '''Linker should provide a way to add a new set of flags for a library '''
-    linker = Linker(compiler=mock_c_compiler)
-    linker.add_lib_flags('xios', ['-L', 'xios/lib', '-I', 'xios/inc'])
-
-    # Make sure we can get it back. The order should be maintained.
-    result = linker.get_lib_flags('xios')
-    assert result == ['-L', 'xios/lib', '-I', 'xios/inc']
-
-
-# There must be function to remove libraries
-def test_linker_remove_library_flags(mock_c_compiler):
-    '''Linker should provide a way to remove the flags for a library '''
-    linker = Linker(compiler=mock_c_compiler)
-    linker.remove_lib_flags('netcdf')
-
-    with pytest.raises(RuntimeError) as err:
-        linker.get_lib_flags('netcdf')
-    assert "Unknown library name" in str(err.value)
-
-
-def test_linker_remove_unknown_library_flags(mock_c_compiler):
-    '''Linker should allow removing flags for unknown library without error'''
-    linker = Linker(compiler=mock_c_compiler)
-    linker.remove_lib_flags('unkown')
-
-
-# Site-specific scripts will want to modify the settings
-def test_linker_replace_library_flags(mock_c_compiler):
-    '''Linker should provide a way to replace the default flags for a library '''
-    linker = Linker(compiler=mock_c_compiler)
-    # Initially we have the default netcdf flags
-    result = linker.get_lib_flags('netcdf')
-    assert result == ['$(nf-config --flibs)', '($nc-config --libs)']
-
-    # Replace them with another set of flags.
-    linker.add_lib_flags('netcdf', ['-L', 'netcdf/lib', '-I', 'netcdf/inc'])
-
-    # Test that we can get our custom flags back
-    result = linker.get_lib_flags('netcdf')
-    assert result == ['-L', 'netcdf/lib', '-I', 'netcdf/inc']
-
-
-# An application then only specifies which libraries it needs to link with (and
-# in what order), and the linker then adds the correct flags during the linking
-# stage.
-def test_linker_add_compiler_flags_by_lib(mock_c_compiler):
-    '''Make sure linker flags are added for the required libraries:
-    '''
-    linker = Linker(compiler=mock_c_compiler)
-    linker.add_lib_flags('xios', ['-flag', '/xios/flag'])
-    mock_result = mock.Mock(returncode=0)
-    with mock.patch('fab.tools.tool.subprocess.run',
-                    return_value=mock_result) as tool_run:
-        linker.link([Path("a.o")], Path("a.out"), add_libs=['xios'], openmp=False)
-    tool_run.assert_called_with(
-        ['mock_c_compiler.exe', 'a.o', '-flag', '/xios/flag', '-o', 'a.out'],
         capture_output=True, env=None, cwd=None, check=False)
