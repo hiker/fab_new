@@ -193,6 +193,14 @@ to specify 3rd party libraries at the link stage.
 
     link_exe(state, flags=['-lm', '-lnetcdf'])
 
+Linkers will be pre-configured with flags for common libraries. Where possible,
+a library name should be used to include the required flags for linking.
+
+.. code-block::
+    :linenos:
+
+    link_exe(state, libs=['netcdf'])
+
 Path-specific flags
 -------------------
 
