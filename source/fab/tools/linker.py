@@ -10,6 +10,7 @@
 import os
 from pathlib import Path
 from typing import cast, Dict, List, Optional
+import warnings
 
 from fab.tools.category import Category
 from fab.tools.compiler import Compiler
@@ -83,12 +84,20 @@ class Linker(CompilerSuiteTool):
         except KeyError:
             raise RuntimeError(f"Unknown library name: '{lib}'")
 
-    def add_lib_flags(self, lib: str, flags: List[str]):
+    def add_lib_flags(self, lib: str, flags: List[str],
+                      silent_replace: bool = False):
         '''Add a set of flags for a standard library
 
         :param lib: the library name
         :param flags: the flags to use with the library
+        :param silent_replace: if set, no warning will be printed when an
+            existing lib is overwritten.
         '''
+        if lib in self._lib_flags and not silent_replace:
+            warnings.warn(f"Replacing existing flags for library {lib}: "
+                          f"'{self._lib_flags[lib]}' with "
+                          f"'{flags}'.")
+
         # Make a copy to avoid modifying the caller's list
         self._lib_flags[lib] = flags[:]
 

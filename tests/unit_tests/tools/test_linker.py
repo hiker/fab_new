@@ -9,6 +9,7 @@
 
 from pathlib import Path
 from unittest import mock
+import warnings
 
 import pytest
 
@@ -115,7 +116,7 @@ def test_linker_add_lib_flags(mock_c_compiler):
     assert result == ["-L", "xios/lib", "-I", "xios/inc"]
 
 
-def test_linker_add_lib_flags_overwrite(mock_c_compiler):
+def test_linker_add_lib_flags_overwrite_defaults(mock_c_compiler):
     """Linker should provide a way to replace the default flags for a library"""
     linker = Linker(compiler=mock_c_compiler)
 
@@ -124,11 +125,33 @@ def test_linker_add_lib_flags_overwrite(mock_c_compiler):
     assert result == ["$(nf-config --flibs)", "($nc-config --libs)"]
 
     # Replace them with another set of flags.
-    linker.add_lib_flags("netcdf", ["-L", "netcdf/lib", "-I", "netcdf/inc"])
+    warn_message = 'Replacing existing flags for library netcdf'
+    with pytest.warns(UserWarning, match=warn_message):
+        linker.add_lib_flags("netcdf", ["-L", "netcdf/lib", "-I", "netcdf/inc"])
 
     # Test that we can see our custom flags
     result = linker.get_lib_flags("netcdf")
     assert result == ["-L", "netcdf/lib", "-I", "netcdf/inc"]
+
+
+def test_linker_add_lib_flags_overwrite_silent(mock_c_compiler):
+    """Linker should provide the option to replace flags for a library without
+    generating a warning
+    """
+    linker = Linker(compiler=mock_c_compiler)
+
+    # Initially we have the default netcdf flags
+    linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+    assert linker.get_lib_flags("customlib") == ["-q", "/tmp", "-j"]
+
+    # Replace them with another set of flags.
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        linker.add_lib_flags("customlib", ["-t", "-b"], silent_replace=True)
+
+    # Test that we can see our custom flags
+    result = linker.get_lib_flags("customlib")
+    assert result == ["-t", "-b"]
 
 
 def test_linker_remove_lib_flags(mock_c_compiler):
