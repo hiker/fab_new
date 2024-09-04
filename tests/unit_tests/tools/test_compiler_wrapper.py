@@ -84,16 +84,19 @@ def test_compiler_is_available_ok():
 
     # Just make sure we get the right object:
     assert isinstance(mpicc, CompilerWrapper)
+    assert mpicc._is_available is None
 
     # Make sure that the compiler-wrapper itself reports that it is available:
-    with mock.patch('fab.tools.compiler.Compiler.is_available',
-                    return_value=True):
-        with mock.patch('fab.tools.compiler.Compiler.get_version',
-                        return_value=(1, 2, 3)):
-            assert mpicc.is_available
+    # even if mpicc is not installed:
+    with mock.patch('fab.tools.compiler_wrapper.CompilerWrapper.'
+                    'check_available', return_value=True) as check_available:
+        assert mpicc.is_available
+        assert mpicc.is_available
+        # Due to caching there should only be one call to check_avail
+        check_available.assert_called_once_with()
 
-    # Test that the value is cached:
-    assert mpicc.is_available
+    # Test that the value is indeed cached:
+    assert mpicc._is_available
 
 
 def test_compiler_is_available_no_version():

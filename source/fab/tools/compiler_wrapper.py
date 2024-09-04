@@ -78,37 +78,9 @@ class CompilerWrapper(Compiler):
         return wrapper_version
 
     @property
-    def is_available(self) -> bool:
-        '''Checks if the tool is available or not.
-
-        :returns: whether the tool is available (i.e. installed and
-            working).
-        '''
-
-        # Rely on `get_version` to do the heavy lifting (e.g. verifying that
-        # both the wrapper and the wrapped compiler do report the same
-        # version number) - so if we have a valid version, we can be sure
-        # the compiler is available, otherwise it is not available or
-        # inconsistent, in which case it should not be used.
-        if self._is_available is None:
-            try:
-                # This will raise an exception if the compiler is not available
-                self.get_version()
-                self._is_available = True
-            except RuntimeError:
-                self._is_available = False
-
-        return self._is_available
-
-    @property
     def compiler(self) -> Compiler:
         ''':returns: the compiler that is wrapped by this CompilerWrapper.'''
         return self._compiler
-
-    @property
-    def category(self) -> Category:
-        ''':returns: the category of this tool.'''
-        return self._compiler.category
 
     @property
     def flags(self) -> Flags:
