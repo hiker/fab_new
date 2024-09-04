@@ -36,14 +36,14 @@ class Tool:
 
     def __init__(self, name: str, exec_name: Union[str, Path],
                  category: Category = Category.MISC,
-                 availablility_option: Optional[str] = None):
+                 availability_option: Optional[str] = None):
         self._logger = logging.getLogger(__name__)
         self._name = name
         self._exec_name = str(exec_name)
         self._flags = Flags()
         self._category = category
-        if availablility_option:
-            self._availability_option = availablility_option
+        if availability_option:
+            self._availability_option = availability_option
         else:
             self._availability_option = "--version"
 
@@ -107,7 +107,7 @@ class Tool:
         return self._name
 
     @property
-    def availablility_option(self) -> str:
+    def availability_option(self) -> str:
         ''':returns: the option to use to check if the tool is available.'''
         return self._availability_option
 
@@ -210,9 +210,9 @@ class CompilerSuiteTool(Tool):
     '''
     def __init__(self, name: str, exec_name: Union[str, Path], suite: str,
                  category: Category,
-                 availablility_option: Optional[str] = None):
+                 availability_option: Optional[str] = None):
         super().__init__(name, exec_name, category,
-                         availablility_option=availablility_option)
+                         availability_option=availability_option)
         self._suite = suite
 
     @property

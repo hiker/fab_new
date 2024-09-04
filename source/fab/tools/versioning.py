@@ -27,7 +27,7 @@ class Versioning(Tool):
                  exec_name: Union[str, Path],
                  category: Category):
         super().__init__(name, exec_name, category,
-                         availablility_option="help")
+                         availability_option="help")
 
 
 # =============================================================================

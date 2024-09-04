@@ -17,8 +17,8 @@ from fab.tools import (Category, CompilerWrapper, Gcc, Gfortran, Icc, Ifort,
 
 
 def test_compiler_wrapper_compiler_getter():
-    '''Tests that the compiler wrapper reports the right version number
-    from the actual compiler.
+    '''Tests that the compiler wrapper getter returns the
+    wrapper compiler instance.
     '''
     gcc = Gcc()
     mpicc = Mpicc(gcc)

@@ -51,9 +51,9 @@ class Compiler(CompilerSuiteTool):
                  compile_flag: Optional[str] = None,
                  output_flag: Optional[str] = None,
                  openmp_flag: Optional[str] = None,
-                 availablility_option: Optional[str] = None):
+                 availability_option: Optional[str] = None):
         super().__init__(name, exec_name, suite, category=category,
-                         availablility_option=availablility_option)
+                         availability_option=availability_option)
         self._version: Union[Tuple[int, ...], None] = None
         self._mpi = mpi
         self._compile_flag = compile_flag if compile_flag else "-c"

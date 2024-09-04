@@ -37,7 +37,7 @@ class CompilerWrapper(Compiler):
             category=self._compiler.category,
             suite=self._compiler.suite,
             mpi=mpi,
-            availablility_option=self._compiler.availablility_option)
+            availability_option=self._compiler.availability_option)
         # We need to have the right version to parse the version output
         # So we set this function based on the function that the
         # wrapped compiler uses:

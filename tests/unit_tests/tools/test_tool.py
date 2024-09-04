@@ -74,8 +74,8 @@ def test_tool_is_available():
 
     # Test setting the option and the getter
     tool = Tool("gfortran", "gfortran", Category.FORTRAN_COMPILER,
-                availablility_option="am_i_here")
-    assert tool.availablility_option == "am_i_here"
+                availability_option="am_i_here")
+    assert tool.availability_option == "am_i_here"
 
 
 def test_tool_flags():
