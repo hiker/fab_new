@@ -11,8 +11,8 @@ from fab.tools.ar import Ar
 from fab.tools.category import Category
 from fab.tools.compiler import (CCompiler, Compiler, FortranCompiler, Gcc,
                                 Gfortran, GnuVersionHandling, Icc, Ifort,
-                                IntelVersionHandling, MpiGcc, MpiGfortran,
-                                MpiIcc, MpiIfort)
+                                IntelVersionHandling)
+from fab.tools.compiler_wrapper import CompilerWrapper, Mpicc, Mpif90
 from fab.tools.flags import Flags
 from fab.tools.linker import Linker
 from fab.tools.psyclone import Psyclone
@@ -29,6 +29,7 @@ __all__ = ["Ar",
            "CCompiler",
            "Compiler",
            "CompilerSuiteTool",
+           "CompilerWrapper",
            "Cpp",
            "CppFortran",
            "Fcm",
@@ -43,10 +44,8 @@ __all__ = ["Ar",
            "Ifort",
            "IntelVersionHandling",
            "Linker",
-           "MpiGcc",
-           "MpiGfortran",
-           "MpiIcc",
-           "MpiIfort",
+           "Mpif90",
+           "Mpicc",
            "Preprocessor",
            "Psyclone",
            "Rsync",

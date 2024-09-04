@@ -14,7 +14,7 @@ import shutil
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
-from typing import List, Set, Dict, Tuple, Optional, Union
+from typing import cast, Dict, List, Optional, Set, Tuple, Union
 
 from fab.artefacts import (ArtefactsGetter, ArtefactSet, ArtefactStore,
                            FilterBuildTrees)
@@ -22,7 +22,7 @@ from fab.build_config import BuildConfig, FlagsConfig
 from fab.metrics import send_metric
 from fab.parse.fortran import AnalysedFortran
 from fab.steps import check_for_errors, run_mp, step
-from fab.tools import Category, Compiler, Flags, FortranCompiler
+from fab.tools import Category, Compiler, Flags
 from fab.util import (CompiledFile, log_or_dot_finish, log_or_dot, Timer,
                       by_type, file_checksum)
 
@@ -133,9 +133,10 @@ def handle_compiler_args(config: BuildConfig, common_flags=None,
 
     # Command line tools are sometimes specified with flags attached.
     compiler = config.tool_box[Category.FORTRAN_COMPILER]
-    if not isinstance(compiler, FortranCompiler):
-        raise RuntimeError(f"Unexpected tool '{compiler.name}' of type "
-                           f"'{type(compiler)}' instead of FortranCompiler")
+    if compiler.category != Category.FORTRAN_COMPILER:
+        raise RuntimeError(f"Unexpected tool '{compiler.name}' of category "
+                           f"'{compiler.category}' instead of FortranCompiler")
+    compiler = cast(Compiler, compiler)
     logger.info(
         f'Fortran compiler is {compiler} {compiler.get_version_string()}')
 
@@ -263,10 +264,11 @@ def process_file(arg: Tuple[AnalysedFortran, MpCommonArgs]) \
         config = mp_common_args.config
         compiler = config.tool_box.get_tool(Category.FORTRAN_COMPILER,
                                             config.mpi)
-        if not isinstance(compiler, FortranCompiler):
-            raise RuntimeError(f"Unexpected tool '{compiler.name}' of type "
-                               f"'{type(compiler)}' instead of "
+        if compiler.category != Category.FORTRAN_COMPILER:
+            raise RuntimeError(f"Unexpected tool '{compiler.name}' of "
+                               f"category '{compiler.category}' instead of "
                                f"FortranCompiler")
+        compiler = cast(Compiler, compiler)
         flags = Flags(mp_common_args.flags.flags_for_path(
             path=analysed_file.fpath, config=config))
 

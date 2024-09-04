@@ -36,14 +36,14 @@ class Tool:
 
     def __init__(self, name: str, exec_name: Union[str, Path],
                  category: Category = Category.MISC,
-                 availablility_option: Optional[str] = None):
+                 availability_option: Optional[str] = None):
         self._logger = logging.getLogger(__name__)
         self._name = name
         self._exec_name = str(exec_name)
         self._flags = Flags()
         self._category = category
-        if availablility_option:
-            self._availability_option = availablility_option
+        if availability_option:
+            self._availability_option = availability_option
         else:
             self._availability_option = "--version"
 
@@ -91,10 +91,25 @@ class Tool:
         ''':returns: the name of the executable.'''
         return self._exec_name
 
+    def change_exec_name(self, exec_name: str):
+        '''Changes the name of the executable This function should in general
+        not be used (typically it is better to create a new tool instead). The
+        function is only provided to support CompilerWrapper (like mpif90),
+        which need all parameters from the original compiler, but call the
+        wrapper. The name of the compiler will be changed just before
+        compilation, and then set back to its original value
+        '''
+        self._exec_name = exec_name
+
     @property
     def name(self) -> str:
         ''':returns: the name of the tool.'''
         return self._name
+
+    @property
+    def availability_option(self) -> str:
+        ''':returns: the option to use to check if the tool is available.'''
+        return self._availability_option
 
     @property
     def category(self) -> Category:
@@ -105,6 +120,14 @@ class Tool:
     def flags(self) -> Flags:
         ''':returns: the flags to be used with this tool.'''
         return self._flags
+
+    def add_flags(self, new_flags: Union[str, List[str]]):
+        '''Adds the specified flags to the list of flags.
+
+        :param new_flags: A single string or list of strings which are the
+            flags to be added.
+        '''
+        self._flags.add_flags(new_flags)
 
     @property
     def logger(self) -> logging.Logger:
@@ -181,20 +204,18 @@ class CompilerSuiteTool(Tool):
     :param exec_name: name of the executable to start.
     :param suite: name of the compiler suite.
     :param category: the Category to which this tool belongs.
-    :param mpi: whether the compiler or linker support MPI.
+    :param availability_option: a command line option for the tool to test
+        if the tool is available on the current system. Defaults to
+        `--version`.
     '''
     def __init__(self, name: str, exec_name: Union[str, Path], suite: str,
-                 category: Category, mpi: bool = False):
-        super().__init__(name, exec_name, category)
+                 category: Category,
+                 availability_option: Optional[str] = None):
+        super().__init__(name, exec_name, category,
+                         availability_option=availability_option)
         self._suite = suite
-        self._mpi = mpi
 
     @property
     def suite(self) -> str:
         ''':returns: the compiler suite of this tool.'''
         return self._suite
-
-    @property
-    def mpi(self) -> bool:
-        ''':returns: whether this tool supports MPI or not.'''
-        return self._mpi

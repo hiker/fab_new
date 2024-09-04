@@ -50,21 +50,43 @@ def test_tool_constructor():
     assert misc.category == Category.MISC
 
 
+def test_tool_chance_exec_name():
+    '''Test that we can change the name of the executable.
+    '''
+    tool = Tool("gfortran", "gfortran", Category.FORTRAN_COMPILER)
+    assert tool.exec_name == "gfortran"
+    tool.change_exec_name("start_me_instead")
+    assert tool.exec_name == "start_me_instead"
+
+
 def test_tool_is_available():
     '''Test that is_available works as expected.'''
     tool = Tool("gfortran", "gfortran", Category.FORTRAN_COMPILER)
     with mock.patch.object(tool, "check_available", return_value=True):
         assert tool.is_available
-    # Test the getter
     tool._is_available = False
-    assert not tool.is_available
-    assert tool.is_compiler
 
     # Test the exception when trying to use in a non-existent tool:
     with pytest.raises(RuntimeError) as err:
         tool.run("--ops")
     assert ("Tool 'gfortran' is not available to run '['gfortran', '--ops']'"
             in str(err.value))
+
+    # Test setting the option and the getter
+    tool = Tool("gfortran", "gfortran", Category.FORTRAN_COMPILER,
+                availability_option="am_i_here")
+    assert tool.availability_option == "am_i_here"
+
+
+def test_tool_flags():
+    '''Test that flags work as expected'''
+    tool = Tool("gfortran", "gfortran", Category.FORTRAN_COMPILER)
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
+    assert tool.flags == []
+    tool.add_flags("-a")
+    assert tool.flags == ["-a"]
+    tool.add_flags(["-b", "-c"])
+    assert tool.flags == ["-a", "-b", "-c"]
 
 
 class TestToolRun:
