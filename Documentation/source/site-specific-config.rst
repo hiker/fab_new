@@ -154,11 +154,12 @@ Fab supports the concept of a compiler wrapper, which is typically
 a script that calls the actual compiler. An example for a wrapper is
 `mpif90`, which might call a GNU or Intel based compiler (with additional
 parameter for accessing the MPI specific include and library paths.).
-An example to create a `mpicc` wrapper:
+An example to create a `mpicc` wrapper (note that this wrapper is already
+part of Fab, there is no need to explicitly add this yourself):
 
 .. code-block::
     :linenos:
-    :caption: Defning an mpicc compiler wrapper
+    :caption: Defining an mpicc compiler wrapper
 
     class Mpicc(CompilerWrapper):
         def __init__(self, compiler: Compiler):
@@ -167,12 +168,12 @@ An example to create a `mpicc` wrapper:
                              compiler=compiler, mpi=True)
 
 The tool system allows several different tools to use the same name
-for the executable, as long as the Fab name is different. The tool
+for the executable, as long as the Fab name is different, i.e. the
+`mpicc-{compiler.name}`. The tool
 repository will automatically add compiler wrapper for `mpicc` and
 `mpif90` for any compiler that is added by Fab. If you want to add
-a new compiler, which can also be invoked using `mpif90`, you need
-to add a compiler wrapper as follows (example taking from the
-ToolRepository):
+a new compiler, which can also be invoked using `mpicc`, you need
+to add a compiler wrapper as follows:
 
 .. code-block::
     :linenos:
@@ -183,22 +184,25 @@ ToolRepository):
     my_new_mpicc = Mpicc(MyNewCompiler)
     ToolRepository().add_tool(my_new_mpicc)
 
-It is important that the same instance is added to the tool repository
-and to the compiler wrapper - this will allow the wrapper and the
-wrapped compiler to share flags. If for example a flag is added to
-`my_new_compiler`, this flag will automatically be used when the
-wrapper `my_new_mpicc` is used.
+When creating a completely new compiler and compiler wrapper
+as in the example above, it is strongly recommended to add
+the new compiler instance to the tool repository as well. This will
+allow the wrapper and the wrapped compiler to share flags. For example,
+a user script can query the ToolRepository to get the original compiler
+and modify its flags. These modification will then automatically be
+applied to the wrapper as well:
 
 .. code-block::
     :linenos:
     :caption: Sharing flags between compiler and compiler wrapper
 
-    gcc = Gcc()
-    mpicc = Mpicc(gcc)
+    tr = ToolRepository()
+    my_compiler = tr.get_tool(Category.C_COMPILER, "my_compiler")
+    my_mpicc = tr.get_tool(Category.C_COMPILER, "mpicc-my_compiler")
 
-    gcc.add_flags(["-a", "-b"])
+    my_compiler.add_flags(["-a", "-b"])
 
-    assert mpicc.flags == ["-a", "-b"]
+    assert my_mpicc.flags == ["-a", "-b"]
 
 
 
