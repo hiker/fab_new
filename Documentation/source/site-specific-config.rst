@@ -148,6 +148,63 @@ rsync, ar, ...).
     tool_box = ToolBox()
     default_c_compiler = tool_box.get_tool(Category.C_COMPILER)
 
+Compiler Wrapper
+================
+Fab supports the concept of a compiler wrapper, which is typically
+a script that calls the actual compiler. An example for a wrapper is
+`mpif90`, which might call a GNU or Intel based compiler (with additional
+parameter for accessing the MPI specific include and library paths.).
+An example to create a `mpicc` wrapper (note that this wrapper is already
+part of Fab, there is no need to explicitly add this yourself):
+
+.. code-block::
+    :linenos:
+    :caption: Defining an mpicc compiler wrapper
+
+    class Mpicc(CompilerWrapper):
+        def __init__(self, compiler: Compiler):
+            super().__init__(name=f"mpicc-{compiler.name}",
+                             exec_name="mpicc",
+                             compiler=compiler, mpi=True)
+
+The tool system allows several different tools to use the same name
+for the executable, as long as the Fab name is different, i.e. the
+`mpicc-{compiler.name}`. The tool
+repository will automatically add compiler wrapper for `mpicc` and
+`mpif90` for any compiler that is added by Fab. If you want to add
+a new compiler, which can also be invoked using `mpicc`, you need
+to add a compiler wrapper as follows:
+
+.. code-block::
+    :linenos:
+    :caption: Adding a mpicc wrapper to the tool repository
+
+    my_new_compiler = MyNewCompiler()
+    ToolRepository().add_tool(my_new_compiler)
+    my_new_mpicc = Mpicc(MyNewCompiler)
+    ToolRepository().add_tool(my_new_mpicc)
+
+When creating a completely new compiler and compiler wrapper
+as in the example above, it is strongly recommended to add
+the new compiler instance to the tool repository as well. This will
+allow the wrapper and the wrapped compiler to share flags. For example,
+a user script can query the ToolRepository to get the original compiler
+and modify its flags. These modification will then automatically be
+applied to the wrapper as well:
+
+.. code-block::
+    :linenos:
+    :caption: Sharing flags between compiler and compiler wrapper
+
+    tr = ToolRepository()
+    my_compiler = tr.get_tool(Category.C_COMPILER, "my_compiler")
+    my_mpicc = tr.get_tool(Category.C_COMPILER, "mpicc-my_compiler")
+
+    my_compiler.add_flags(["-a", "-b"])
+
+    assert my_mpicc.flags == ["-a", "-b"]
+
+
 
 TODO
 ====
@@ -157,3 +214,8 @@ definition in the compiler objects.
 This will allow a site to define their own set of default flags to
 be used with a certain compiler by replacing or updating a compiler
 instance in the Tool Repository
+
+Also, a lot of content in this chapter is not actually about site-specific
+configuration. This should likely be renamed or split (once we
+have details about the using site-specific configuration, which might be
+once the Baf base script is added to Fab).

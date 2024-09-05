@@ -42,20 +42,19 @@ def test_compile_c_wrong_compiler(content):
     config = content[0]
     tb = config.tool_box
     # Take the Fortran compiler
-    fc = tb[Category.FORTRAN_COMPILER]
-    # And set its category to C_COMPILER
-    fc._category = Category.C_COMPILER
+    cc = tb[Category.C_COMPILER]
     # So overwrite the C compiler with the re-categorised Fortran compiler
-    tb.add_tool(fc, silent_replace=True)
+    cc._is_available = True
+    tb.add_tool(cc, silent_replace=True)
+    cc._category = Category.FORTRAN_COMPILER
 
     # Now check that _compile_file detects the incorrect class of the
     # C compiler
     mp_common_args = mock.Mock(config=config)
     with pytest.raises(RuntimeError) as err:
         _compile_file((None, mp_common_args))
-    assert ("Unexpected tool 'mock_fortran_compiler' of type '<class "
-            "'fab.tools.compiler.FortranCompiler'>' instead of CCompiler"
-            in str(err.value))
+    assert ("Unexpected tool 'mock_c_compiler' of category "
+            "'FORTRAN_COMPILER' instead of CCompiler" in str(err.value))
 
 
 # This is more of an integration test than a unit test
@@ -66,7 +65,6 @@ class TestCompileC:
         '''Ensure the command is formed correctly.'''
         config, _, expect_hash = content
         compiler = config.tool_box[Category.C_COMPILER]
-        print("XX", compiler, type(compiler), compiler.category)
         # run the step
         with mock.patch("fab.steps.compile_c.send_metric") as send_metric:
             with mock.patch('pathlib.Path.mkdir'):

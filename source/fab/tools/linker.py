@@ -60,6 +60,11 @@ class Linker(CompilerSuiteTool):
             ['$(nf-config --flibs)', '($nc-config --libs)']
         )
 
+    @property
+    def mpi(self) -> bool:
+        ''':returns: whether the linker supports MPI or not.'''
+        return self._compiler.mpi
+
     def check_available(self) -> bool:
         '''
         :returns: whether the linker is available or not. We do this

@@ -12,10 +12,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional, Type
+from typing import cast, Optional
 
 from fab.tools.tool import Tool
 from fab.tools.category import Category
+from fab.tools.compiler import Compiler
 from fab.tools.linker import Linker
 from fab.tools.versioning import Fcm, Git, Subversion
 
@@ -60,26 +61,30 @@ class ToolRepository(dict):
         # We get circular dependencies if imported at top of the file:
         # pylint: disable=import-outside-toplevel
         from fab.tools import (Ar, Cpp, CppFortran, Gcc, Gfortran,
-                               Icc, Ifort, MpiGcc, MpiGfortran,
-                               MpiIcc, MpiIfort, Psyclone, Rsync)
+                               Icc, Ifort, Psyclone, Rsync)
 
         for cls in [Gcc, Icc, Gfortran, Ifort, Cpp, CppFortran,
-                    MpiGcc, MpiGfortran, MpiIcc, MpiIfort,
                     Fcm, Git, Subversion, Ar, Psyclone, Rsync]:
-            self.add_tool(cls)
+            self.add_tool(cls())
 
-    def add_tool(self, cls: Type[Any]):
+        from fab.tools.compiler_wrapper import Mpif90, Mpicc
+        all_fc = self[Category.FORTRAN_COMPILER][:]
+        for fc in all_fc:
+            mpif90 = Mpif90(fc)
+            self.add_tool(mpif90)
+
+        all_cc = self[Category.C_COMPILER][:]
+        for cc in all_cc:
+            mpicc = Mpicc(cc)
+            self.add_tool(mpicc)
+
+    def add_tool(self, tool: Tool):
         '''Creates an instance of the specified class and adds it
         to the tool repository.
 
         :param cls: the tool to instantiate.
         '''
 
-        # Note that we cannot declare `cls` to be `Type[Tool]`, since the
-        # Tool constructor requires arguments, but the classes used here are
-        # derived from Tool which do not require any arguments (e.g. Ifort)
-
-        tool = cls()
         # We do not test if a tool is actually available. The ToolRepository
         # contains the tools that FAB knows about. It is the responsibility
         # of the ToolBox to make sure only available tools are added.
@@ -87,6 +92,7 @@ class ToolRepository(dict):
 
         # If we have a compiler, add the compiler as linker as well
         if tool.is_compiler:
+            tool = cast(Compiler, tool)
             linker = Linker(name=f"linker-{tool.name}", compiler=tool)
             self[linker.category].append(linker)
 

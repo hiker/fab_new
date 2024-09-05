@@ -7,6 +7,7 @@
 '''Tests the PSyclone implementation.
 '''
 
+from importlib import reload
 from unittest import mock
 
 from fab.tools import (Category, Psyclone)
@@ -121,3 +122,16 @@ def test_psyclone_process(psyclone_lfric_api):
          'psy_file', '-oalg', 'alg_file', '-s', 'script_called', '-c',
          'psyclone.cfg', '-d', 'root1', '-d', 'root2', 'x90_file'],
         capture_output=True, env=None, cwd=None, check=False)
+
+
+def test_type_checking_import():
+    '''PSyclone contains an import of TYPE_CHECKING to break a circular
+    dependency. In order to reach 100% coverage of PSyclone, we set
+    mock TYPE_CHECKING to be true and force a re-import of the module.
+    TODO 314: This test can be removed once #314 is fixed.
+    '''
+    with mock.patch('typing.TYPE_CHECKING', True):
+        # This import will not actually re-import, since the module
+        # is already imported. But we need this in order to call reload:
+        import fab.tools.psyclone
+        reload(fab.tools.psyclone)

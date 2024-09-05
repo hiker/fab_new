@@ -14,17 +14,17 @@ from unittest import mock
 
 import pytest
 
-from fab.tools import (Category, CCompiler, FortranCompiler,
-                       Gcc, Gfortran, Icc, Ifort, MpiGcc, MpiGfortran,
-                       MpiIcc, MpiIfort)
+from fab.tools import (Category, CCompiler, Compiler, FortranCompiler,
+                       Gcc, Gfortran, Icc, Ifort)
 
 
 def test_compiler():
     '''Test the compiler constructor.'''
-    cc = CCompiler("gcc", "gcc", "gnu", openmp_flag="-fopenmp")
+    cc = Compiler("gcc", "gcc", "gnu", category=Category.C_COMPILER, openmp_flag="-fopenmp")
     assert cc.category == Category.C_COMPILER
     assert cc._compile_flag == "-c"
     assert cc._output_flag == "-o"
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert cc.flags == []
     assert cc.suite == "gnu"
     assert not cc.mpi
@@ -40,6 +40,7 @@ def test_compiler():
     assert fc._output_flag == "-o"
     assert fc.category == Category.FORTRAN_COMPILER
     assert fc.suite == "gnu"
+    # pylint: disable-next=use-implicit-booleaness-not-comparison
     assert fc.flags == []
     assert not fc.mpi
     assert fc.openmp_flag == "-fopenmp"
@@ -209,6 +210,7 @@ def test_get_version_string():
     '''Tests the get_version_string() method.
     '''
     full_output = 'GNU Fortran (gcc) 6.1.0'
+
     c = Gfortran()
     with mock.patch.object(c, "run", mock.Mock(return_value=full_output)):
         assert c.get_version_string() == "6.1.0"
@@ -374,19 +376,9 @@ def test_gcc():
     assert not gcc.mpi
 
 
-def test_mpi_gcc():
-    '''Tests the MPI enables gcc class.'''
-    mpi_gcc = MpiGcc()
-    assert mpi_gcc.name == "mpicc-gcc"
-    assert isinstance(mpi_gcc, CCompiler)
-    assert mpi_gcc.category == Category.C_COMPILER
-    assert mpi_gcc.mpi
-
-
-@pytest.mark.parametrize("compiler", [Gcc, MpiGcc])
-def test_gcc_get_version(compiler):
+def test_gcc_get_version():
     '''Tests the gcc class get_version method.'''
-    gcc = compiler()
+    gcc = Gcc()
     full_output = dedent("""
         gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-20)
         Copyright (C) 2018 Free Software Foundation, Inc.
@@ -395,10 +387,9 @@ def test_gcc_get_version(compiler):
         assert gcc.get_version() == (8, 5, 0)
 
 
-@pytest.mark.parametrize("compiler", [Gcc, MpiGcc])
-def test_gcc_get_version_with_icc_string(compiler):
+def test_gcc_get_version_with_icc_string():
     '''Tests the gcc class with an icc version output.'''
-    gcc = compiler()
+    gcc = Gcc()
     full_output = dedent("""
         icc (ICC) 2021.10.0 20230609
         Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
@@ -420,22 +411,12 @@ def test_gfortran():
     assert not gfortran.mpi
 
 
-def test_mpi_gfortran():
-    '''Tests the MPI enabled gfortran class.'''
-    mpi_gfortran = MpiGfortran()
-    assert mpi_gfortran.name == "mpif90-gfortran"
-    assert isinstance(mpi_gfortran, FortranCompiler)
-    assert mpi_gfortran.category == Category.FORTRAN_COMPILER
-    assert mpi_gfortran.mpi
-
-
 # Possibly overkill to cover so many gfortran versions but I had to go
 # check them so might as well add them.
 # Note: different sources, e.g conda, change the output slightly...
 
 
-@pytest.mark.parametrize("compiler", [Gfortran, MpiGfortran])
-def test_gfortran_get_version_4(compiler):
+def test_gfortran_get_version_4():
     '''Test gfortran 4.8.5 version detection.'''
     full_output = dedent("""
         GNU Fortran (GCC) 4.8.5 20150623 (Red Hat 4.8.5-44)
@@ -447,13 +428,12 @@ def test_gfortran_get_version_4(compiler):
         For more information about these matters, see the file named COPYING
 
     """)
-    gfortran = compiler()
+    gfortran = Gfortran()
     with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
         assert gfortran.get_version() == (4, 8, 5)
 
 
-@pytest.mark.parametrize("compiler", [Gfortran, MpiGfortran])
-def test_gfortran_get_version_6(compiler):
+def test_gfortran_get_version_6():
     '''Test gfortran 6.1.0 version detection.'''
     full_output = dedent("""
         GNU Fortran (GCC) 6.1.0
@@ -462,13 +442,12 @@ def test_gfortran_get_version_6(compiler):
         warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
     """)
-    gfortran = compiler()
+    gfortran = Gfortran()
     with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
         assert gfortran.get_version() == (6, 1, 0)
 
 
-@pytest.mark.parametrize("compiler", [Gfortran, MpiGfortran])
-def test_gfortran_get_version_8(compiler):
+def test_gfortran_get_version_8():
     '''Test gfortran 8.5.0 version detection.'''
     full_output = dedent("""
         GNU Fortran (conda-forge gcc 8.5.0-16) 8.5.0
@@ -477,13 +456,12 @@ def test_gfortran_get_version_8(compiler):
         warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
     """)
-    gfortran = compiler()
+    gfortran = Gfortran()
     with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
         assert gfortran.get_version() == (8, 5, 0)
 
 
-@pytest.mark.parametrize("compiler", [Gfortran, MpiGfortran])
-def test_gfortran_get_version_10(compiler):
+def test_gfortran_get_version_10():
     '''Test gfortran 10.4.0 version detection.'''
     full_output = dedent("""
         GNU Fortran (conda-forge gcc 10.4.0-16) 10.4.0
@@ -492,13 +470,12 @@ def test_gfortran_get_version_10(compiler):
         warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
     """)
-    gfortran = compiler()
+    gfortran = Gfortran()
     with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
         assert gfortran.get_version() == (10, 4, 0)
 
 
-@pytest.mark.parametrize("compiler", [Gfortran, MpiGfortran])
-def test_gfortran_get_version_12(compiler):
+def test_gfortran_get_version_12():
     '''Test gfortran 12.1.0 version detection.'''
     full_output = dedent("""
         GNU Fortran (conda-forge gcc 12.1.0-16) 12.1.0
@@ -507,20 +484,19 @@ def test_gfortran_get_version_12(compiler):
         warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
     """)
-    gfortran = compiler()
+    gfortran = Gfortran()
     with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
         assert gfortran.get_version() == (12, 1, 0)
 
 
-@pytest.mark.parametrize("compiler", [Gfortran, MpiGfortran])
-def test_gfortran_get_version_with_ifort_string(compiler):
+def test_gfortran_get_version_with_ifort_string():
     '''Tests the gfortran class with an ifort version output.'''
     full_output = dedent("""
         ifort (IFORT) 14.0.3 20140422
         Copyright (C) 1985-2014 Intel Corporation.  All rights reserved.
 
     """)
-    gfortran = compiler()
+    gfortran = Gfortran()
     with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             gfortran.get_version()
@@ -537,36 +513,25 @@ def test_icc():
     assert not icc.mpi
 
 
-def test_mpi_icc():
-    '''Tests the MPI enabled icc class.'''
-    mpi_icc = MpiIcc()
-    assert mpi_icc.name == "mpicc-icc"
-    assert isinstance(mpi_icc, CCompiler)
-    assert mpi_icc.category == Category.C_COMPILER
-    assert mpi_icc.mpi
-
-
-@pytest.mark.parametrize("compiler", [Icc, MpiIcc])
-def test_icc_get_version(compiler):
+def test_icc_get_version():
     '''Tests the icc class get_version method.'''
     full_output = dedent("""
         icc (ICC) 2021.10.0 20230609
         Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
 
     """)
-    icc = compiler()
+    icc = Icc()
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         assert icc.get_version() == (2021, 10, 0)
 
 
-@pytest.mark.parametrize("compiler", [Icc, MpiIcc])
-def test_icc_get_version_with_gcc_string(compiler):
+def test_icc_get_version_with_gcc_string():
     '''Tests the icc class with a GCC version output.'''
     full_output = dedent("""
         gcc (GCC) 8.5.0 20210514 (Red Hat 8.5.0-20)
         Copyright (C) 2018 Free Software Foundation, Inc.
     """)
-    icc = compiler()
+    icc = Icc()
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icc.get_version()
@@ -583,88 +548,73 @@ def test_ifort():
     assert not ifort.mpi
 
 
-def test_mpi_ifort():
-    '''Tests the MPI enabled ifort class.'''
-    mpi_ifort = MpiIfort()
-    assert mpi_ifort.name == "mpif90-ifort"
-    assert isinstance(mpi_ifort, FortranCompiler)
-    assert mpi_ifort.category == Category.FORTRAN_COMPILER
-    assert mpi_ifort.mpi
-
-
-@pytest.mark.parametrize("compiler", [Ifort, MpiIfort])
-def test_ifort_get_version_14(compiler):
+def test_ifort_get_version_14():
     '''Test ifort 14.0.3 version detection.'''
     full_output = dedent("""
         ifort (IFORT) 14.0.3 20140422
         Copyright (C) 1985-2014 Intel Corporation.  All rights reserved.
 
     """)
-    ifort = compiler()
+    ifort = Ifort()
     with mock.patch.object(ifort, "run", mock.Mock(return_value=full_output)):
         assert ifort.get_version() == (14, 0, 3)
 
 
-@pytest.mark.parametrize("compiler", [Ifort, MpiIfort])
-def test_ifort_get_version_15(compiler):
+def test_ifort_get_version_15():
     '''Test ifort 15.0.2 version detection.'''
     full_output = dedent("""
         ifort (IFORT) 15.0.2 20150121
         Copyright (C) 1985-2015 Intel Corporation.  All rights reserved.
 
     """)
-    ifort = compiler()
+    ifort = Ifort()
     with mock.patch.object(ifort, "run", mock.Mock(return_value=full_output)):
         assert ifort.get_version() == (15, 0, 2)
 
 
-@pytest.mark.parametrize("compiler", [Ifort, MpiIfort])
-def test_ifort_get_version_17(compiler):
+def test_ifort_get_version_17():
     '''Test ifort 17.0.7 version detection.'''
     full_output = dedent("""
         ifort (IFORT) 17.0.7 20180403
         Copyright (C) 1985-2018 Intel Corporation.  All rights reserved.
 
     """)
-    ifort = compiler()
+    ifort = Ifort()
     with mock.patch.object(ifort, "run", mock.Mock(return_value=full_output)):
         assert ifort.get_version() == (17, 0, 7)
 
 
-@pytest.mark.parametrize("compiler", [Ifort, MpiIfort])
-def test_ifort_get_version_19(compiler):
+def test_ifort_get_version_19():
     '''Test ifort 19.0.0.117 version detection.'''
     full_output = dedent("""
         ifort (IFORT) 19.0.0.117 20180804
         Copyright (C) 1985-2018 Intel Corporation.  All rights reserved.
 
     """)
-    ifort = compiler()
+    ifort = Ifort()
     with mock.patch.object(ifort, "run", mock.Mock(return_value=full_output)):
         assert ifort.get_version() == (19, 0, 0, 117)
 
 
-@pytest.mark.parametrize("compiler", [Ifort, MpiIfort])
-def test_ifort_get_version_with_icc_string(compiler):
+def test_ifort_get_version_with_icc_string():
     '''Tests the ifort class with an icc version output.'''
     full_output = dedent("""
         icc (ICC) 2021.10.0 20230609
         Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
 
     """)
-    ifort = compiler()
+    ifort = Ifort()
     with mock.patch.object(ifort, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             ifort.get_version()
         assert "Unexpected version output format for compiler" in str(err.value)
 
 
-@pytest.mark.parametrize("compiler", [Ifort, MpiIfort])
 @pytest.mark.parametrize("version", ["5.15f.2",
                                      ".0.5.1",
                                      "0.5.1.",
                                      "0.5..1"])
-def test_ifort_get_version_invalid_version(compiler, version):
+def test_ifort_get_version_invalid_version(version):
     '''Tests the icc class with an icc version string that contains an invalid
     version number.'''
     full_output = dedent(f"""
@@ -672,29 +622,8 @@ def test_ifort_get_version_invalid_version(compiler, version):
         Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
 
     """)
-    icc = compiler()
+    icc = Ifort()
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icc.get_version()
         assert "Unexpected version output format for compiler" in str(err.value)
-
-
-# ============================================================================
-def test_compiler_wrapper():
-    '''Make sure we can easily create a compiler wrapper.'''
-    class MpiF90(Ifort):
-        '''A simple compiler wrapper'''
-        def __init__(self):
-            super().__init__(name="mpif90-intel",
-                             exec_name="mpif90")
-
-        @property
-        def mpi(self):
-            return True
-
-    mpif90 = MpiF90()
-    assert mpif90.suite == "intel-classic"
-    assert mpif90.category == Category.FORTRAN_COMPILER
-    assert mpif90.name == "mpif90-intel"
-    assert mpif90.exec_name == "mpif90"
-    assert mpif90.mpi
