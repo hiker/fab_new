@@ -77,20 +77,21 @@ class TestArchiveObjects:
         assert config.artefact_store[ArtefactSet.OBJECT_ARCHIVES] == {
             None: set([str(config.build_output / 'mylib.a')])}
 
-    def test_incorrect_tool(self):
+    def test_incorrect_tool(self, mock_c_compiler):
         '''Test that an incorrect archive tool is detected
         '''
 
         config = BuildConfig('proj', ToolBox(), mpi=False, openmp=False)
         tool_box = config.tool_box
-        cc = tool_box.get_tool(Category.C_COMPILER, config.mpi)
-        # And set its category to C_COMPILER
+        cc = mock_c_compiler
+        # And set its category to be AR
         cc._category = Category.AR
-        # So overwrite the C compiler with the re-categories Fortran compiler
+        # Now add this 'ar' tool to the tool box
         tool_box.add_tool(cc)
 
         with pytest.raises(RuntimeError) as err:
             archive_objects(config=config,
                             output_fpath=config.build_output / 'mylib.a')
-        assert ("Unexpected tool 'gcc' of type '<class "
-                "'fab.tools.compiler.Gcc'>' instead of Ar" in str(err.value))
+        assert ("Unexpected tool 'mock_c_compiler' of type '<class "
+                "'fab.tools.compiler.CCompiler'>' instead of Ar"
+                in str(err.value))
