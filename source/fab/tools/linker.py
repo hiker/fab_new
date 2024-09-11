@@ -118,16 +118,18 @@ class Linker(CompilerSuiteTool):
 
     def link(self, input_files: List[Path], output_file: Path,
              openmp: bool,
+             pre_lib_flags: Optional[List[str]] = None,
              libs: Optional[List[str]] = None,
-             add_flags: Optional[List[str]] = None) -> str:
+             post_lib_flags: Optional[List[str]] = None) -> str:
         '''Executes the linker with the specified input files,
         creating `output_file`.
 
         :param input_files: list of input files to link.
         :param output_file: output file.
         :param openm: whether OpenMP is requested or not.
+        :param pre_lib_flags: additional linker flags to use before libs.
         :param libs: additional libraries to link with.
-        :param add_flags: additional linker flags.
+        :param post_lib_flags: additional linker flags to use after libs.
 
         :returns: the stdout of the link command
         '''
@@ -141,9 +143,11 @@ class Linker(CompilerSuiteTool):
         # TODO: why are the .o files sorted? That shouldn't matter
         params.extend(sorted(map(str, input_files)))
 
+        if pre_lib_flags:
+            params.extend(pre_lib_flags)
         for lib in (libs or []):
             params.extend(self.get_lib_flags(lib))
-        if add_flags:
-            params.extend(add_flags)
+        if post_lib_flags:
+            params.extend(post_lib_flags)
         params.extend([self._output_flag, str(output_file)])
         return self.run(params)

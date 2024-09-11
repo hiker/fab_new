@@ -203,6 +203,40 @@ def test_linker_c_with_libraries(mock_c_compiler):
          "-o", "a.out"])
 
 
+def test_linker_c_with_libraries_and_post_flags(mock_c_compiler):
+    """Test the link command line when a library and additional flags are
+    specified."""
+    linker = Linker(compiler=mock_c_compiler)
+    with mock.patch.object(linker, "run") as link_run:
+        linker.link(
+            [Path("a.o")], Path("a.out"),
+            libs=["netcdf"], post_lib_flags=["-extra-flag"],
+            openmp=False,
+        )
+    link_run.assert_called_with([
+        "a.o",
+        "$(nf-config --flibs)", "($nc-config --libs)", "-extra-flag",
+        "-o", "a.out",
+    ])
+
+
+def test_linker_c_with_libraries_and_pre_flags(mock_c_compiler):
+    """Test the link command line when a library and additional flags are
+    specified."""
+    linker = Linker(compiler=mock_c_compiler)
+    with mock.patch.object(linker, "run") as link_run:
+        linker.link(
+            [Path("a.o")], Path("a.out"),
+            pre_lib_flags=["-extra-flag"], libs=["netcdf"],
+            openmp=False,
+        )
+    link_run.assert_called_with([
+        "a.o",
+        "-extra-flag", "$(nf-config --flibs)", "($nc-config --libs)",
+        "-o", "a.out",
+    ])
+
+
 def test_linker_c_with_custom_libraries(mock_c_compiler):
     """Test the link command line when additional libraries are specified."""
     linker = Linker(compiler=mock_c_compiler)
@@ -270,14 +304,31 @@ def test_linker_all_flag_types(mock_c_compiler):
     with mock.patch.dict("os.environ", {"LDFLAGS": "-ldflag"}):
         linker = Linker(compiler=mock_c_compiler)
 
+    mock_c_compiler.flags.extend(["-compiler-flag1", "-compiler-flag2"])
     linker.flags.extend(["-linker-flag1", "-linker-flag2"])
+    linker.add_lib_flags("customlib", ["-libflag1", "libflag2"])
+
     mock_result = mock.Mock(returncode=0)
     with mock.patch("fab.tools.tool.subprocess.run",
                     return_value=mock_result) as tool_run:
-        linker.link([Path("a.o")], Path("a.out"), openmp=False)
+        linker.link([
+            Path("a.o")], Path("a.out"),
+            pre_lib_flags=["-prelibflag1", "-prelibflag2"],
+            libs=["customlib", "netcdf"],
+            post_lib_flags=["-postlibflag1", "-postlibflag2"],
+            openmp=True)
+
     tool_run.assert_called_with([
         "mock_c_compiler.exe",
-        "-ldflag",
-        "-linker-flag1", "-linker-flag2",
-        "a.o", "-o", "a.out"],
+        # Note: compiler flags and linker flags will be switched when the Linker
+        # becomes a CompilerWrapper in a following PR
+        "-ldflag", "-linker-flag1", "-linker-flag2",
+        "-compiler-flag1", "-compiler-flag2",
+        "-fopenmp",
+        "a.o",
+        "-prelibflag1", "-prelibflag2",
+        "-libflag1", "libflag2",
+        "$(nf-config --flibs)", "($nc-config --libs)",
+        "-postlibflag1", "-postlibflag2",
+        "-o", "a.out"],
         capture_output=True, env=None, cwd=None, check=False)
