@@ -52,6 +52,13 @@ def test_linker(mock_c_compiler, mock_fortran_compiler):
             "creating Linker." in str(err.value))
 
 
+def test_linker_gets_ldflags(mock_c_compiler):
+    """Tests that the linker retrieves env.LDFLAGS"""
+    with mock.patch.dict("os.environ", {"LDFLAGS": "-lm"}):
+        linker = Linker(compiler=mock_c_compiler)
+    assert "-lm" in linker.flags
+
+
 def test_linker_check_available(mock_c_compiler):
     '''Tests the is_available functionality.'''
 
@@ -254,4 +261,23 @@ def test_linker_add_compiler_flag():
         linker.link([Path("a.o")], Path("a.out"), openmp=False)
     tool_run.assert_called_with(
         ['no-compiler.exe', '-some-other-flag', 'a.o', '-o', 'a.out'],
+        capture_output=True, env=None, cwd=None, check=False)
+
+
+def test_linker_all_flag_types(mock_c_compiler):
+    """Make sure all possible sources of linker flags are used in the right
+    order"""
+    with mock.patch.dict("os.environ", {"LDFLAGS": "-ldflag"}):
+        linker = Linker(compiler=mock_c_compiler)
+
+    linker.flags.extend(["-linker-flag1", "-linker-flag2"])
+    mock_result = mock.Mock(returncode=0)
+    with mock.patch("fab.tools.tool.subprocess.run",
+                    return_value=mock_result) as tool_run:
+        linker.link([Path("a.o")], Path("a.out"), openmp=False)
+    tool_run.assert_called_with([
+        "mock_c_compiler.exe",
+        "-ldflag",
+        "-linker-flag1", "-linker-flag2",
+        "a.o", "-o", "a.out"],
         capture_output=True, env=None, cwd=None, check=False)
