@@ -100,7 +100,7 @@ def test_linker_get_lib_flags(mock_c_compiler):
     linker = Linker(compiler=mock_c_compiler)
     # netcdf is built in to the linker, since it is reasonable portable
     result = linker.get_lib_flags("netcdf")
-    assert result == ["$(nf-config --flibs)", "($nc-config --libs)"]
+    assert result == ["$(nf-config --flibs)", "$(nc-config --libs)"]
 
 
 def test_linker_get_lib_flags_unknown(mock_c_compiler):
@@ -129,7 +129,7 @@ def test_linker_add_lib_flags_overwrite_defaults(mock_c_compiler):
 
     # Initially we have the default netcdf flags
     result = linker.get_lib_flags("netcdf")
-    assert result == ["$(nf-config --flibs)", "($nc-config --libs)"]
+    assert result == ["$(nf-config --flibs)", "$(nc-config --libs)"]
 
     # Replace them with another set of flags.
     warn_message = 'Replacing existing flags for library netcdf'
@@ -199,7 +199,7 @@ def test_linker_c_with_libraries(mock_c_compiler):
         linker.link([Path("a.o")], Path("a.out"), libs=["netcdf"], openmp=True)
     link_run.assert_called_with(
         ["-fopenmp", "a.o",
-         "$(nf-config --flibs)", "($nc-config --libs)",
+         "$(nf-config --flibs)", "$(nc-config --libs)",
          "-o", "a.out"])
 
 
@@ -215,7 +215,7 @@ def test_linker_c_with_libraries_and_post_flags(mock_c_compiler):
         )
     link_run.assert_called_with([
         "a.o",
-        "$(nf-config --flibs)", "($nc-config --libs)", "-extra-flag",
+        "$(nf-config --flibs)", "$(nc-config --libs)", "-extra-flag",
         "-o", "a.out",
     ])
 
@@ -232,7 +232,7 @@ def test_linker_c_with_libraries_and_pre_flags(mock_c_compiler):
         )
     link_run.assert_called_with([
         "a.o",
-        "-extra-flag", "$(nf-config --flibs)", "($nc-config --libs)",
+        "-extra-flag", "$(nf-config --flibs)", "$(nc-config --libs)",
         "-o", "a.out",
     ])
 
@@ -248,7 +248,7 @@ def test_linker_c_with_custom_libraries(mock_c_compiler):
     link_run.assert_called_with(
         ["-fopenmp", "a.o",
          "-q", "/tmp", "-j",
-         "$(nf-config --flibs)", "($nc-config --libs)",
+         "$(nf-config --flibs)", "$(nc-config --libs)",
          "-o", "a.out"])
 
 
@@ -328,7 +328,7 @@ def test_linker_all_flag_types(mock_c_compiler):
         "a.o",
         "-prelibflag1", "-prelibflag2",
         "-libflag1", "libflag2",
-        "$(nf-config --flibs)", "($nc-config --libs)",
+        "$(nf-config --flibs)", "$(nc-config --libs)",
         "-postlibflag1", "-postlibflag2",
         "-o", "a.out"],
         capture_output=True, env=None, cwd=None, check=False)

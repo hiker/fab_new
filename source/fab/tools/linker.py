@@ -57,7 +57,7 @@ class Linker(CompilerSuiteTool):
         # Include netcdf as an example, since it is reasonable portable
         self.add_lib_flags(
             'netcdf',
-            ['$(nf-config --flibs)', '($nc-config --libs)']
+            ['$(nf-config --flibs)', '$(nc-config --libs)']
         )
 
     @property
