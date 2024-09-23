@@ -54,11 +54,6 @@ class Linker(CompilerSuiteTool):
 
         # Maintain a set of flags for common libraries.
         self._lib_flags: Dict[str, List[str]] = {}
-        # Include netcdf as an example, since it is reasonable portable
-        self.add_lib_flags(
-            'netcdf',
-            ['$(nf-config --flibs)', '$(nc-config --libs)']
-        )
 
     @property
     def mpi(self) -> bool:

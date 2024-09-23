@@ -93,13 +93,12 @@ def test_linker_check_available(mock_c_compiler):
 # ====================
 # Managing lib flags:
 # ====================
-def test_linker_get_lib_flags(mock_c_compiler):
+def test_linker_get_lib_flags(mock_linker):
     """Linker should provide a map of library names, each leading to a list of
     linker flags
     """
-    linker = Linker(compiler=mock_c_compiler)
-    # netcdf is built in to the linker, since it is reasonable portable
-    result = linker.get_lib_flags("netcdf")
+    # netcdf flags are built in to the mock linker
+    result = mock_linker.get_lib_flags("netcdf")
     assert result == ["$(nf-config --flibs)", "$(nc-config --libs)"]
 
 
@@ -123,58 +122,56 @@ def test_linker_add_lib_flags(mock_c_compiler):
     assert result == ["-L", "xios/lib", "-I", "xios/inc"]
 
 
-def test_linker_add_lib_flags_overwrite_defaults(mock_c_compiler):
+def test_linker_add_lib_flags_overwrite_defaults(mock_linker):
     """Linker should provide a way to replace the default flags for a library"""
-    linker = Linker(compiler=mock_c_compiler)
 
     # Initially we have the default netcdf flags
-    result = linker.get_lib_flags("netcdf")
+    result = mock_linker.get_lib_flags("netcdf")
     assert result == ["$(nf-config --flibs)", "$(nc-config --libs)"]
 
     # Replace them with another set of flags.
     warn_message = 'Replacing existing flags for library netcdf'
     with pytest.warns(UserWarning, match=warn_message):
-        linker.add_lib_flags("netcdf", ["-L", "netcdf/lib", "-I", "netcdf/inc"])
+        mock_linker.add_lib_flags(
+            "netcdf", ["-L", "netcdf/lib", "-I", "netcdf/inc"])
 
     # Test that we can see our custom flags
-    result = linker.get_lib_flags("netcdf")
+    result = mock_linker.get_lib_flags("netcdf")
     assert result == ["-L", "netcdf/lib", "-I", "netcdf/inc"]
 
 
-def test_linker_add_lib_flags_overwrite_silent(mock_c_compiler):
+def test_linker_add_lib_flags_overwrite_silent(mock_linker):
     """Linker should provide the option to replace flags for a library without
     generating a warning
     """
-    linker = Linker(compiler=mock_c_compiler)
 
     # Initially we have the default netcdf flags
-    linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
-    assert linker.get_lib_flags("customlib") == ["-q", "/tmp", "-j"]
+    mock_linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+    assert mock_linker.get_lib_flags("customlib") == ["-q", "/tmp", "-j"]
 
     # Replace them with another set of flags.
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        linker.add_lib_flags("customlib", ["-t", "-b"], silent_replace=True)
+        mock_linker.add_lib_flags("customlib", ["-t", "-b"],
+                                  silent_replace=True)
 
     # Test that we can see our custom flags
-    result = linker.get_lib_flags("customlib")
+    result = mock_linker.get_lib_flags("customlib")
     assert result == ["-t", "-b"]
 
 
-def test_linker_remove_lib_flags(mock_c_compiler):
+def test_linker_remove_lib_flags(mock_linker):
     """Linker should provide a way to remove the flags for a library"""
-    linker = Linker(compiler=mock_c_compiler)
-    linker.remove_lib_flags("netcdf")
+    mock_linker.remove_lib_flags("netcdf")
 
     with pytest.raises(RuntimeError) as err:
-        linker.get_lib_flags("netcdf")
+        mock_linker.get_lib_flags("netcdf")
     assert "Unknown library name: 'netcdf'" in str(err.value)
 
 
-def test_linker_remove_lib_flags_unknown(mock_c_compiler):
+def test_linker_remove_lib_flags_unknown(mock_linker):
     """Linker should silently allow removing flags for unknown library"""
-    linker = Linker(compiler=mock_c_compiler)
-    linker.remove_lib_flags("unkown")
+    mock_linker.remove_lib_flags("unknown")
 
 
 # ====================
@@ -183,6 +180,9 @@ def test_linker_remove_lib_flags_unknown(mock_c_compiler):
 def test_linker_c(mock_c_compiler):
     '''Test the link command line when no additional libraries are specified.'''
     linker = Linker(compiler=mock_c_compiler)
+    # Add a library to the linker, but don't use it in the link step
+    linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+
     mock_result = mock.Mock(returncode=0)
     with mock.patch('fab.tools.tool.subprocess.run',
                     return_value=mock_result) as tool_run:
@@ -195,11 +195,15 @@ def test_linker_c(mock_c_compiler):
 def test_linker_c_with_libraries(mock_c_compiler):
     """Test the link command line when additional libraries are specified."""
     linker = Linker(compiler=mock_c_compiler)
+    linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+
     with mock.patch.object(linker, "run") as link_run:
-        linker.link([Path("a.o")], Path("a.out"), libs=["netcdf"], openmp=True)
+        linker.link([Path("a.o")], Path("a.out"),
+                    libs=["customlib"], openmp=True)
+    # The order of the 'libs' list should be maintained
     link_run.assert_called_with(
         ["-fopenmp", "a.o",
-         "$(nf-config --flibs)", "$(nc-config --libs)",
+         "-q", "/tmp", "-j",
          "-o", "a.out"])
 
 
@@ -207,15 +211,17 @@ def test_linker_c_with_libraries_and_post_flags(mock_c_compiler):
     """Test the link command line when a library and additional flags are
     specified."""
     linker = Linker(compiler=mock_c_compiler)
+    linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+
     with mock.patch.object(linker, "run") as link_run:
         linker.link(
             [Path("a.o")], Path("a.out"),
-            libs=["netcdf"], post_lib_flags=["-extra-flag"],
+            libs=["customlib"], post_lib_flags=["-extra-flag"],
             openmp=False,
         )
     link_run.assert_called_with([
         "a.o",
-        "$(nf-config --flibs)", "$(nc-config --libs)", "-extra-flag",
+        "-q", "/tmp", "-j", "-extra-flag",
         "-o", "a.out",
     ])
 
@@ -224,32 +230,19 @@ def test_linker_c_with_libraries_and_pre_flags(mock_c_compiler):
     """Test the link command line when a library and additional flags are
     specified."""
     linker = Linker(compiler=mock_c_compiler)
+    linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+
     with mock.patch.object(linker, "run") as link_run:
         linker.link(
             [Path("a.o")], Path("a.out"),
-            pre_lib_flags=["-extra-flag"], libs=["netcdf"],
+            pre_lib_flags=["-extra-flag"], libs=["customlib"],
             openmp=False,
         )
     link_run.assert_called_with([
         "a.o",
-        "-extra-flag", "$(nf-config --flibs)", "$(nc-config --libs)",
+        "-extra-flag", "-q", "/tmp", "-j",
         "-o", "a.out",
     ])
-
-
-def test_linker_c_with_custom_libraries(mock_c_compiler):
-    """Test the link command line when additional libraries are specified."""
-    linker = Linker(compiler=mock_c_compiler)
-    linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
-    with mock.patch.object(linker, "run") as link_run:
-        linker.link([Path("a.o")], Path("a.out"),
-                    libs=["customlib", "netcdf"], openmp=True)
-    # The order of the 'libs' list should be maintained
-    link_run.assert_called_with(
-        ["-fopenmp", "a.o",
-         "-q", "/tmp", "-j",
-         "$(nf-config --flibs)", "$(nc-config --libs)",
-         "-o", "a.out"])
 
 
 def test_linker_c_with_unknown_library(mock_c_compiler):
@@ -260,8 +253,8 @@ def test_linker_c_with_unknown_library(mock_c_compiler):
 
     with pytest.raises(RuntimeError) as err:
         # Try to use "customlib" when we haven't added it to the linker
-        linker.link([Path("a.o")], Path("a.out"),
-                    libs=["netcdf", "customlib"], openmp=True)
+        linker.link([Path("a.o")], Path("a.out"), libs=["customlib"],
+                    openmp=True)
 
     assert "Unknown library name: 'customlib'" in str(err.value)
 
@@ -306,7 +299,8 @@ def test_linker_all_flag_types(mock_c_compiler):
 
     mock_c_compiler.flags.extend(["-compiler-flag1", "-compiler-flag2"])
     linker.flags.extend(["-linker-flag1", "-linker-flag2"])
-    linker.add_lib_flags("customlib", ["-libflag1", "libflag2"])
+    linker.add_lib_flags("customlib1", ["-lib1flag1", "lib1flag2"])
+    linker.add_lib_flags("customlib2", ["-lib2flag1", "lib2flag2"])
 
     mock_result = mock.Mock(returncode=0)
     with mock.patch("fab.tools.tool.subprocess.run",
@@ -314,7 +308,7 @@ def test_linker_all_flag_types(mock_c_compiler):
         linker.link([
             Path("a.o")], Path("a.out"),
             pre_lib_flags=["-prelibflag1", "-prelibflag2"],
-            libs=["customlib", "netcdf"],
+            libs=["customlib2", "customlib1"],
             post_lib_flags=["-postlibflag1", "-postlibflag2"],
             openmp=True)
 
@@ -327,8 +321,8 @@ def test_linker_all_flag_types(mock_c_compiler):
         "-fopenmp",
         "a.o",
         "-prelibflag1", "-prelibflag2",
-        "-libflag1", "libflag2",
-        "$(nf-config --flibs)", "$(nc-config --libs)",
+        "-lib2flag1", "lib2flag2",
+        "-lib1flag1", "lib1flag2",
         "-postlibflag1", "-postlibflag2",
         "-o", "a.out"],
         capture_output=True, env=None, cwd=None, check=False)

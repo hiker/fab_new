@@ -48,6 +48,8 @@ def fixture_mock_linker():
                          Category.FORTRAN_COMPILER)
     mock_linker.run = mock.Mock()
     mock_linker._version = (1, 2, 3)
+    mock_linker.add_lib_flags('netcdf',
+                              ['$(nf-config --flibs)', '$(nc-config --libs)'])
     return mock_linker
 
 
