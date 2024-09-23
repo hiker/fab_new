@@ -216,7 +216,7 @@ def test_linker_c_with_libraries_and_post_flags(mock_c_compiler):
         linker.link(
             [Path("a.o")], Path("a.out"), libs=["customlib"], openmp=False)
     link_run.assert_called_with(
-        [ "a.o", "-lcustom", "-jcustom", "-extra-flag", "-o", "a.out"])
+        ["a.o", "-lcustom", "-jcustom", "-extra-flag", "-o", "a.out"])
 
 
 def test_linker_c_with_libraries_and_pre_flags(mock_c_compiler):
