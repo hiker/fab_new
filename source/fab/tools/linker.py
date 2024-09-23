@@ -54,6 +54,9 @@ class Linker(CompilerSuiteTool):
 
         # Maintain a set of flags for common libraries.
         self._lib_flags: Dict[str, List[str]] = {}
+        # Allow flags to include before or after any library-specific flags.
+        self._pre_lib_flags: List[str] = []
+        self._post_lib_flags: List[str] = []
 
     @property
     def mpi(self) -> bool:
@@ -102,7 +105,7 @@ class Linker(CompilerSuiteTool):
         self._lib_flags[lib] = flags[:]
 
     def remove_lib_flags(self, lib: str):
-        '''Add a set of flags for a standard library
+        '''Remove any flags configured for a standard library
 
         :param lib: the library name
         '''
@@ -111,20 +114,30 @@ class Linker(CompilerSuiteTool):
         except KeyError:
             pass
 
+    def add_pre_lib_flags(self, flags: List[str]):
+        '''Add a set of flags to use before any library-specific flags
+
+        :param flags: the flags to include
+        '''
+        self._pre_lib_flags.extend(flags)
+
+    def add_post_lib_flags(self, flags: List[str]):
+        '''Add a set of flags to use after any library-specific flags
+
+        :param flags: the flags to include
+        '''
+        self._post_lib_flags.extend(flags)
+
     def link(self, input_files: List[Path], output_file: Path,
              openmp: bool,
-             pre_lib_flags: Optional[List[str]] = None,
-             libs: Optional[List[str]] = None,
-             post_lib_flags: Optional[List[str]] = None) -> str:
+             libs: Optional[List[str]] = None) -> str:
         '''Executes the linker with the specified input files,
         creating `output_file`.
 
         :param input_files: list of input files to link.
         :param output_file: output file.
         :param openm: whether OpenMP is requested or not.
-        :param pre_lib_flags: additional linker flags to use before libs.
         :param libs: additional libraries to link with.
-        :param post_lib_flags: additional linker flags to use after libs.
 
         :returns: the stdout of the link command
         '''
@@ -138,11 +151,11 @@ class Linker(CompilerSuiteTool):
         # TODO: why are the .o files sorted? That shouldn't matter
         params.extend(sorted(map(str, input_files)))
 
-        if pre_lib_flags:
-            params.extend(pre_lib_flags)
+        if self._pre_lib_flags:
+            params.extend(self._pre_lib_flags)
         for lib in (libs or []):
             params.extend(self.get_lib_flags(lib))
-        if post_lib_flags:
-            params.extend(post_lib_flags)
+        if self._post_lib_flags:
+            params.extend(self._post_lib_flags)
         params.extend([self._output_flag, str(output_file)])
         return self.run(params)

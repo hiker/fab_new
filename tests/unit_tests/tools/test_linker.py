@@ -212,13 +212,11 @@ def test_linker_c_with_libraries_and_post_flags(mock_c_compiler):
     specified."""
     linker = Linker(compiler=mock_c_compiler)
     linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+    linker.add_post_lib_flags(["-extra-flag"])
 
     with mock.patch.object(linker, "run") as link_run:
         linker.link(
-            [Path("a.o")], Path("a.out"),
-            libs=["customlib"], post_lib_flags=["-extra-flag"],
-            openmp=False,
-        )
+            [Path("a.o")], Path("a.out"), libs=["customlib"], openmp=False)
     link_run.assert_called_with([
         "a.o",
         "-q", "/tmp", "-j", "-extra-flag",
@@ -231,13 +229,11 @@ def test_linker_c_with_libraries_and_pre_flags(mock_c_compiler):
     specified."""
     linker = Linker(compiler=mock_c_compiler)
     linker.add_lib_flags("customlib", ["-q", "/tmp", "-j"])
+    linker.add_pre_lib_flags(["-extra-flag"])
 
     with mock.patch.object(linker, "run") as link_run:
         linker.link(
-            [Path("a.o")], Path("a.out"),
-            pre_lib_flags=["-extra-flag"], libs=["customlib"],
-            openmp=False,
-        )
+            [Path("a.o")], Path("a.out"), libs=["customlib"], openmp=False)
     link_run.assert_called_with([
         "a.o",
         "-extra-flag", "-q", "/tmp", "-j",
@@ -299,17 +295,17 @@ def test_linker_all_flag_types(mock_c_compiler):
 
     mock_c_compiler.flags.extend(["-compiler-flag1", "-compiler-flag2"])
     linker.flags.extend(["-linker-flag1", "-linker-flag2"])
+    linker.add_pre_lib_flags(["-prelibflag1", "-prelibflag2"])
     linker.add_lib_flags("customlib1", ["-lib1flag1", "lib1flag2"])
     linker.add_lib_flags("customlib2", ["-lib2flag1", "lib2flag2"])
+    linker.add_post_lib_flags(["-postlibflag1", "-postlibflag2"])
 
     mock_result = mock.Mock(returncode=0)
     with mock.patch("fab.tools.tool.subprocess.run",
                     return_value=mock_result) as tool_run:
         linker.link([
             Path("a.o")], Path("a.out"),
-            pre_lib_flags=["-prelibflag1", "-prelibflag2"],
             libs=["customlib2", "customlib1"],
-            post_lib_flags=["-postlibflag1", "-postlibflag2"],
             openmp=True)
 
     tool_run.assert_called_with([
