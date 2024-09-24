@@ -9,7 +9,7 @@ Link an executable.
 """
 import logging
 from string import Template
-from typing import Optional
+from typing import List, Optional, Union
 
 from fab.artefacts import ArtefactSet
 from fab.steps import step
@@ -33,7 +33,10 @@ class DefaultLinkerSource(ArtefactsGetter):
 
 
 @step
-def link_exe(config, flags=None, source: Optional[ArtefactsGetter] = None):
+def link_exe(config,
+             libs: Union[List[str], None] = None,
+             flags: Union[List[str], None] = None,
+             source: Optional[ArtefactsGetter] = None):
     """
     Link object files into an executable for every build target.
 
@@ -49,8 +52,10 @@ def link_exe(config, flags=None, source: Optional[ArtefactsGetter] = None):
         The :class:`fab.build_config.BuildConfig` object where we can read
         settings such as the project workspace folder or the multiprocessing
         flag.
+    :param libs:
+        A list of required library names to pass to the linker.
     :param flags:
-        A list of flags to pass to the linker.
+        A list of additional flags to pass to the linker.
     :param source:
         An optional :class:`~fab.artefacts.ArtefactsGetter`. It defaults to the
         output from compiler steps, which typically is the expected behaviour.
@@ -59,13 +64,15 @@ def link_exe(config, flags=None, source: Optional[ArtefactsGetter] = None):
     linker = config.tool_box.get_tool(Category.LINKER, config.mpi)
     logger.info(f'Linker is {linker.name}')
 
-    flags = flags or []
+    libs = libs or []
+    if flags:
+        linker.add_post_lib_flags(flags)
     source_getter = source or DefaultLinkerSource()
 
     target_objects = source_getter(config.artefact_store)
     for root, objects in target_objects.items():
         exe_path = config.project_workspace / f'{root}'
-        linker.link(objects, exe_path, openmp=config.openmp, add_libs=flags)
+        linker.link(objects, exe_path, openmp=config.openmp, libs=libs)
         config.artefact_store.add(ArtefactSet.EXECUTABLES, exe_path)
 
 
@@ -115,4 +122,5 @@ def link_shared_object(config, output_fpath: str, flags=None,
 
     objects = target_objects[None]
     out_name = Template(output_fpath).substitute(output=config.build_output)
-    linker.link(objects, out_name, openmp=config.openmp, add_libs=flags)
+    linker.add_post_lib_flags(flags)
+    linker.link(objects, out_name, openmp=config.openmp)

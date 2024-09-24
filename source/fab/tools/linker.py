@@ -9,7 +9,8 @@
 
 import os
 from pathlib import Path
-from typing import cast, List, Optional
+from typing import cast, Dict, List, Optional
+import warnings
 
 from fab.tools.category import Category
 from fab.tools.compiler import Compiler
@@ -51,6 +52,12 @@ class Linker(CompilerSuiteTool):
         self._compiler = compiler
         self.flags.extend(os.getenv("LDFLAGS", "").split())
 
+        # Maintain a set of flags for common libraries.
+        self._lib_flags: Dict[str, List[str]] = {}
+        # Allow flags to include before or after any library-specific flags.
+        self._pre_lib_flags: List[str] = []
+        self._post_lib_flags: List[str] = []
+
     @property
     def mpi(self) -> bool:
         ''':returns: whether the linker supports MPI or not.'''
@@ -66,16 +73,71 @@ class Linker(CompilerSuiteTool):
 
         return super().check_available()
 
+    def get_lib_flags(self, lib: str) -> List[str]:
+        '''Gets the standard flags for a standard library
+
+        :param lib: the library name
+
+        :returns: a list of flags
+
+        :raises RuntimeError: if lib is not recognised
+        '''
+        try:
+            return self._lib_flags[lib]
+        except KeyError:
+            raise RuntimeError(f"Unknown library name: '{lib}'")
+
+    def add_lib_flags(self, lib: str, flags: List[str],
+                      silent_replace: bool = False):
+        '''Add a set of flags for a standard library
+
+        :param lib: the library name
+        :param flags: the flags to use with the library
+        :param silent_replace: if set, no warning will be printed when an
+            existing lib is overwritten.
+        '''
+        if lib in self._lib_flags and not silent_replace:
+            warnings.warn(f"Replacing existing flags for library {lib}: "
+                          f"'{self._lib_flags[lib]}' with "
+                          f"'{flags}'.")
+
+        # Make a copy to avoid modifying the caller's list
+        self._lib_flags[lib] = flags[:]
+
+    def remove_lib_flags(self, lib: str):
+        '''Remove any flags configured for a standard library
+
+        :param lib: the library name
+        '''
+        try:
+            del self._lib_flags[lib]
+        except KeyError:
+            pass
+
+    def add_pre_lib_flags(self, flags: List[str]):
+        '''Add a set of flags to use before any library-specific flags
+
+        :param flags: the flags to include
+        '''
+        self._pre_lib_flags.extend(flags)
+
+    def add_post_lib_flags(self, flags: List[str]):
+        '''Add a set of flags to use after any library-specific flags
+
+        :param flags: the flags to include
+        '''
+        self._post_lib_flags.extend(flags)
+
     def link(self, input_files: List[Path], output_file: Path,
              openmp: bool,
-             add_libs: Optional[List[str]] = None) -> str:
+             libs: Optional[List[str]] = None) -> str:
         '''Executes the linker with the specified input files,
         creating `output_file`.
 
         :param input_files: list of input files to link.
         :param output_file: output file.
         :param openm: whether OpenMP is requested or not.
-        :param add_libs: additional linker flags.
+        :param libs: additional libraries to link with.
 
         :returns: the stdout of the link command
         '''
@@ -88,7 +150,12 @@ class Linker(CompilerSuiteTool):
             params = []
         # TODO: why are the .o files sorted? That shouldn't matter
         params.extend(sorted(map(str, input_files)))
-        if add_libs:
-            params += add_libs
+
+        if self._pre_lib_flags:
+            params.extend(self._pre_lib_flags)
+        for lib in (libs or []):
+            params.extend(self.get_lib_flags(lib))
+        if self._post_lib_flags:
+            params.extend(self._post_lib_flags)
         params.extend([self._output_flag, str(output_file)])
         return self.run(params)

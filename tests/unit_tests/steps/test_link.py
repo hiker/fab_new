@@ -34,6 +34,9 @@ class TestLinkExe:
             linker = Linker("mock_link", "mock_link.exe", "mock-vendor")
             # Mark the linker as available to it can be added to the tool box
             linker._is_available = True
+
+            # Add a custom library to the linker
+            linker.add_lib_flags('mylib', ['-L/my/lib', '-mylib'])
             tool_box.add_tool(linker, silent_replace=True)
             mock_result = mock.Mock(returncode=0, stdout="abc\ndef".encode())
             with mock.patch('fab.tools.tool.subprocess.run',
@@ -41,9 +44,10 @@ class TestLinkExe:
                     pytest.warns(UserWarning,
                                  match="_metric_send_conn not "
                                        "set, cannot send metrics"):
-                link_exe(config, flags=['-fooflag', '-barflag'])
+                link_exe(config, libs=['mylib'], flags=['-fooflag', '-barflag'])
 
         tool_run.assert_called_with(
             ['mock_link.exe', '-L/foo1/lib', '-L/foo2/lib', 'bar.o', 'foo.o',
-             '-fooflag', '-barflag', '-o', 'workspace/foo'],
+             '-L/my/lib', '-mylib', '-fooflag', '-barflag',
+             '-o', 'workspace/foo'],
             capture_output=True, env=None, cwd=None, check=False)

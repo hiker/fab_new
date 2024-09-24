@@ -51,7 +51,8 @@ class TestArchiveObjects:
 
         # ensure the correct artefacts were created
         assert config.artefact_store[ArtefactSet.OBJECT_ARCHIVES] == {
-            target: set([str(config.build_output / f'{target}.a')]) for target in targets}
+            target: set([str(config.build_output / f'{target}.a')])
+            for target in targets}
 
     def test_for_library(self):
         '''As used when building an object archive or archiving before linking
@@ -65,32 +66,36 @@ class TestArchiveObjects:
         mock_result = mock.Mock(returncode=0, return_value=123)
         with mock.patch('fab.tools.tool.subprocess.run',
                         return_value=mock_result) as mock_run_command, \
-                pytest.warns(UserWarning, match="_metric_send_conn not set, cannot send metrics"):
-            archive_objects(config=config, output_fpath=config.build_output / 'mylib.a')
+                pytest.warns(UserWarning, match="_metric_send_conn not set, "
+                                                "cannot send metrics"):
+            archive_objects(config=config,
+                            output_fpath=config.build_output / 'mylib.a')
 
         # ensure the correct command line calls were made
         mock_run_command.assert_called_once_with([
-            'ar', 'cr', str(config.build_output / 'mylib.a'), 'util1.o', 'util2.o'],
+            'ar', 'cr', str(config.build_output / 'mylib.a'), 'util1.o',
+            'util2.o'],
             capture_output=True, env=None, cwd=None, check=False)
 
         # ensure the correct artefacts were created
         assert config.artefact_store[ArtefactSet.OBJECT_ARCHIVES] == {
             None: set([str(config.build_output / 'mylib.a')])}
 
-    def test_incorrect_tool(self):
+    def test_incorrect_tool(self, mock_c_compiler):
         '''Test that an incorrect archive tool is detected
         '''
 
         config = BuildConfig('proj', ToolBox(), mpi=False, openmp=False)
         tool_box = config.tool_box
-        cc = tool_box.get_tool(Category.C_COMPILER, config.mpi)
-        # And set its category to C_COMPILER
+        cc = mock_c_compiler
+        # And set its category to be AR
         cc._category = Category.AR
-        # So overwrite the C compiler with the re-categories Fortran compiler
+        # Now add this 'ar' tool to the tool box
         tool_box.add_tool(cc)
 
         with pytest.raises(RuntimeError) as err:
             archive_objects(config=config,
                             output_fpath=config.build_output / 'mylib.a')
-        assert ("Unexpected tool 'gcc' of type '<class "
-                "'fab.tools.compiler.Gcc'>' instead of Ar" in str(err.value))
+        assert ("Unexpected tool 'mock_c_compiler' of type '<class "
+                "'fab.tools.compiler.CCompiler'>' instead of Ar"
+                in str(err.value))
