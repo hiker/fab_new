@@ -335,7 +335,6 @@ class GnuVersionHandling():
         '''
         Extract the numerical part from a GNU compiler's version output
 
-        :param name: the compiler's name
         :param category: the compiler's Category
         :param version_output: the full version output from the compiler
         :returns: the actual version as a string
@@ -404,7 +403,7 @@ class IntelVersionHandling():
         '''
         Extract the numerical part from an Intel compiler's version output
 
-        :param name: the compiler's name
+        :param category: the compiler's Category
         :param version_output: the full version output from the compiler
         :returns: the actual version as a string
 
