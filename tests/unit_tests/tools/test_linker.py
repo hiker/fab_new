@@ -19,37 +19,25 @@ from fab.tools import (Category, Linker)
 def test_linker(mock_c_compiler, mock_fortran_compiler):
     '''Test the linker constructor.'''
 
-    linker = Linker(name="my_linker", exec_name="my_linker.exe", suite="suite")
+    assert mock_c_compiler.category == Category.C_COMPILER
+    assert mock_c_compiler.name == "mock_c_compiler"
+
+    linker = Linker(mock_c_compiler)
     assert linker.category == Category.LINKER
-    assert linker.name == "my_linker"
-    assert linker.exec_name == "my_linker.exe"
+    assert linker.name == "linker-mock_c_compiler"
+    assert linker.exec_name == "mock_c_compiler.exe"
     assert linker.suite == "suite"
     assert linker.flags == []
 
-    linker = Linker(name="my_linker", compiler=mock_c_compiler)
-    assert linker.category == Category.LINKER
-    assert linker.name == "my_linker"
-    assert linker.exec_name == mock_c_compiler.exec_name
-    assert linker.suite == mock_c_compiler.suite
-    assert linker.flags == []
+    assert mock_fortran_compiler.category == Category.FORTRAN_COMPILER
+    assert mock_fortran_compiler.name == "mock_fortran_compiler"
 
-    linker = Linker(compiler=mock_c_compiler)
+    linker = Linker(mock_fortran_compiler)
     assert linker.category == Category.LINKER
-    assert linker.name == mock_c_compiler.name
-    assert linker.exec_name == mock_c_compiler.exec_name
-    assert linker.suite == mock_c_compiler.suite
+    assert linker.name == "linker-mock_fortran_compiler"
+    assert linker.exec_name == "mock_fortran_compiler.exe"
+    assert linker.suite == "suite"
     assert linker.flags == []
-
-    linker = Linker(compiler=mock_fortran_compiler)
-    assert linker.category == Category.LINKER
-    assert linker.name == mock_fortran_compiler.name
-    assert linker.exec_name == mock_fortran_compiler.exec_name
-    assert linker.flags == []
-
-    with pytest.raises(RuntimeError) as err:
-        linker = Linker(name="no-exec-given")
-    assert ("Either specify name, exec name, and suite or a compiler when "
-            "creating Linker." in str(err.value))
 
 
 def test_linker_gets_ldflags(mock_c_compiler):
@@ -64,29 +52,19 @@ def test_linker_check_available(mock_c_compiler):
 
     # First test if a compiler is given. The linker will call the
     # corresponding function in the compiler:
-    linker = Linker(compiler=mock_c_compiler)
-    with mock.patch.object(mock_c_compiler, "check_available",
-                           return_value=True) as comp_run:
+    linker = Linker(mock_c_compiler)
+    with mock.patch('fab.tools.compiler.Compiler.get_version',
+                    return_value=(1, 2, 3)):
         assert linker.check_available()
-    # It should be called once without any parameter
-    comp_run.assert_called_once_with()
 
-    # Second test, no compiler is given. Mock Tool.run to
-    # return a success:
-    linker = Linker("ld", "ld", suite="gnu")
-    mock_result = mock.Mock(returncode=0)
-    with mock.patch('fab.tools.tool.subprocess.run',
-                    return_value=mock_result) as tool_run:
-        linker.check_available()
-    tool_run.assert_called_once_with(
-        ["ld", "--version"], capture_output=True, env=None,
-        cwd=None, check=False)
 
-    # Third test: assume the tool does not exist, check_available
-    # will return False (and not raise  an exception)
-    linker._is_available = None
-    with mock.patch("fab.tools.tool.Tool.run",
-                    side_effect=RuntimeError("")) as tool_run:
+def test_linker_check_unavailable(mock_c_compiler):
+    '''Tests the is_available functionality.'''
+    # assume the tool does not exist, check_available
+    # will return False (and not raise an exception)
+    linker = Linker(mock_c_compiler)
+    with mock.patch('fab.tools.compiler.Compiler.get_version',
+                    side_effect=RuntimeError("")):
         assert linker.check_available() is False
 
 
@@ -264,29 +242,22 @@ def test_compiler_linker_add_compiler_flag(mock_c_compiler):
         capture_output=True, env=None, cwd=None, check=False)
 
 
-def test_linker_add_compiler_flag():
-    '''Make sure ad-hoc linker flags work if a linker is created without a
-    compiler:
-    '''
-    linker = Linker("no-compiler", "no-compiler.exe", "suite")
-    linker.flags.append("-some-other-flag")
-    mock_result = mock.Mock(returncode=0)
-    with mock.patch('fab.tools.tool.subprocess.run',
-                    return_value=mock_result) as tool_run:
-        linker.link([Path("a.o")], Path("a.out"), openmp=False)
-    tool_run.assert_called_with(
-        ['no-compiler.exe', '-some-other-flag', 'a.o', '-o', 'a.out'],
-        capture_output=True, env=None, cwd=None, check=False)
-
-
 def test_linker_all_flag_types(mock_c_compiler):
     """Make sure all possible sources of linker flags are used in the right
     order"""
-    with mock.patch.dict("os.environ", {"LDFLAGS": "-ldflag"}):
+
+    # Environment variables for both the compiler and linker
+    # TODO: THIS IS ACTUALLY WRONG - The FFLAGS shouldn't be picked up here,
+    # because the compiler already exists. It is being added twice, because
+    # Linker inherits Compiler (in addition to wrapping it)
+    with mock.patch.dict("os.environ", {
+        "FFLAGS": "-fflag",
+        "LDFLAGS": "-ldflag"
+    }):
         linker = Linker(compiler=mock_c_compiler)
 
-    mock_c_compiler.flags.extend(["-compiler-flag1", "-compiler-flag2"])
-    linker.flags.extend(["-linker-flag1", "-linker-flag2"])
+    mock_c_compiler.add_flags(["-compiler-flag1", "-compiler-flag2"])
+    linker.add_flags(["-linker-flag1", "-linker-flag2"])
     linker.add_pre_lib_flags(["-prelibflag1", "-prelibflag2"])
     linker.add_lib_flags("customlib1", ["-lib1flag1", "lib1flag2"])
     linker.add_lib_flags("customlib2", ["-lib2flag1", "lib2flag2"])
@@ -302,10 +273,8 @@ def test_linker_all_flag_types(mock_c_compiler):
 
     tool_run.assert_called_with([
         "mock_c_compiler.exe",
-        # Note: compiler flags and linker flags will be switched when the Linker
-        # becomes a CompilerWrapper in a following PR
+        "-compiler-flag1", "-compiler-flag2", "-fflag",
         "-ldflag", "-linker-flag1", "-linker-flag2",
-        "-compiler-flag1", "-compiler-flag2",
         "-fopenmp",
         "a.o",
         "-prelibflag1", "-prelibflag2",

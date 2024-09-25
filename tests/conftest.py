@@ -11,7 +11,7 @@ from unittest import mock
 
 import pytest
 
-from fab.tools import Category, CCompiler, FortranCompiler, Linker, ToolBox
+from fab.tools import CCompiler, FortranCompiler, Linker, ToolBox
 
 
 # This avoids pylint warnings about Redefining names from outer scope
@@ -42,10 +42,9 @@ def fixture_mock_fortran_compiler():
 
 
 @pytest.fixture(name="mock_linker")
-def fixture_mock_linker():
+def fixture_mock_linker(mock_fortran_compiler):
     '''Provides a mock linker.'''
-    mock_linker = Linker("mock_linker", "mock_linker.exe",
-                         Category.FORTRAN_COMPILER)
+    mock_linker = Linker(mock_fortran_compiler)
     mock_linker.run = mock.Mock()
     mock_linker._version = (1, 2, 3)
     mock_linker.add_lib_flags("netcdf", ["-lnetcdff", "-lnetcdf"])

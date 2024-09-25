@@ -59,7 +59,7 @@ class Compiler(CompilerSuiteTool):
         self._compile_flag = compile_flag if compile_flag else "-c"
         self._output_flag = output_flag if output_flag else "-o"
         self._openmp_flag = openmp_flag if openmp_flag else ""
-        self.flags.extend(os.getenv("FFLAGS", "").split())
+        self.add_flags(os.getenv("FFLAGS", "").split())
 
     @property
     def mpi(self) -> bool:
@@ -335,7 +335,6 @@ class GnuVersionHandling():
         '''
         Extract the numerical part from a GNU compiler's version output
 
-        :param name: the compiler's name
         :param category: the compiler's Category
         :param version_output: the full version output from the compiler
         :returns: the actual version as a string
@@ -404,7 +403,7 @@ class IntelVersionHandling():
         '''
         Extract the numerical part from an Intel compiler's version output
 
-        :param name: the compiler's name
+        :param category: the compiler's Category
         :param version_output: the full version output from the compiler
         :returns: the actual version as a string
 

@@ -25,26 +25,46 @@ class CompilerWrapper(Compiler):
     :param name: name of the wrapper.
     :param exec_name: name of the executable to call.
     :param compiler: the compiler that is decorated.
+    :param category: the tool's category. Defaults to the compiler's category.
     :param mpi: whether MPI is supported by this compiler or not.
     '''
 
     def __init__(self, name: str, exec_name: str,
                  compiler: Compiler,
+                 category: Optional[Category] = None,
                  mpi: bool = False):
         self._compiler = compiler
+        category = category or self._compiler.category
         super().__init__(
             name=name, exec_name=exec_name,
-            category=self._compiler.category,
+            category=category,
             suite=self._compiler.suite,
             mpi=mpi,
             availability_option=self._compiler.availability_option)
-        # We need to have the right version to parse the version output
-        # So we set this function based on the function that the
-        # wrapped compiler uses:
-        setattr(self, "parse_version_output", compiler.parse_version_output)
 
     def __str__(self):
         return f"{type(self).__name__}({self._compiler.name})"
+
+    # We need to have the right version to parse the version output
+    # So we set this function based on the function that the
+    # wrapped compiler uses:
+    def parse_version_output(self, _: Category, version_output: str) -> str:
+        """
+        Extract the numerical part from a GNU compiler's version output
+
+        Overridden to use the wrapped compiler's version of the function, and
+        pass in the wrapped compiler's category, since the category of this
+        wrapper might be different.
+
+        :param category: the compiler's Category
+        :param version_output: the full version output from the compiler
+        :returns: the actual version as a string
+
+        :raises RuntimeError: if the output is not in an expected format.
+        """
+
+        return self.compiler.parse_version_output(
+            self.compiler.category, version_output)
 
     def get_version(self) -> Tuple[int, ...]:
         """
