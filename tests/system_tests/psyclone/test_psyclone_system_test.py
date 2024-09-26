@@ -202,6 +202,9 @@ class TestTransformationScript:
     """
     def test_transformation_script(self, psyclone_lfric_api):
         psyclone_tool = Psyclone()
+        psyclone_tool._version = (2, 4, 0)
+        psyclone_tool._is_available = True
+
         mock_transformation_script = mock.Mock(return_value=__file__)
         with mock.patch('fab.tools.psyclone.Psyclone.run') as mock_run_command:
             mock_transformation_script.return_value = Path(__file__)
@@ -219,8 +222,9 @@ class TestTransformationScript:
             mock_transformation_script.assert_called_once_with(Path(__file__), None)
             # check transformation_script is passed to psyclone command with '-s'
             mock_run_command.assert_called_with(
-                additional_parameters=['-api', psyclone_lfric_api, '-l', 'all',
+                additional_parameters=['-api', psyclone_lfric_api,
                                        '-opsy',  Path(__file__),
                                        '-oalg', Path(__file__),
+                                       '-l', 'all',
                                        '-s', Path(__file__),
                                        __file__])
