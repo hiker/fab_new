@@ -55,7 +55,6 @@ class Psyclone(Tool):
 
         # Search for the version info:
         exp = r"PSyclone version: (\d[\d.]+\d)"
-        print("VERSION [", version_output, "]")
         matches = re.search(exp, version_output)
         if not matches:
             warnings.warn(f"Unexpected version information for PSyclone: "
@@ -151,7 +150,6 @@ class Psyclone(Tool):
         # as parameter. No API is required if PSyclone works as
         # transformation tool only, so calling PSyclone without api is
         # actually valid.
-        print("API", api, self._version)
         if api:
             if self._version > (2, 5, 0):
                 api_param = "--psykal-dsl"
@@ -163,10 +161,16 @@ class Psyclone(Tool):
                 # Mapping from new names to old names:
                 mapping = {"lfric": "dynamo0.3",
                            "gocean": "gocean1.0"}
-
+            # Make mypy happy - we tested above that these variables
+            # are defined
+            assert psy_file
+            assert alg_file
             parameters.extend([api_param, mapping.get(api, api),
                                "-opsy", psy_file, "-oalg", alg_file])
         else:   # no api
+            # Make mypy happy - we tested above that transformed_file is
+            # specified when no api is specified.
+            assert transformed_file
             if self._version > (2, 5, 0):
                 # New version: no API, parameter, but -o for output name:
                 parameters.extend(["-o", transformed_file])
