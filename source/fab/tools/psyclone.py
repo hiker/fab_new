@@ -100,7 +100,7 @@ class Psyclone(Tool):
                 kernel_roots: Optional[List[Union[str, Path]]] = None,
                 api: Optional[str] = None,
                 ):
-        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-arguments, too-many-branches
         '''Run PSyclone with the specified parameters. If PSyclone is used to
         transform existing Fortran files, `api` must be None, and the output
         file name is `transformed_file`. If PSyclone is using its DSL
@@ -121,6 +121,10 @@ class Psyclone(Tool):
 
         if not self.is_available:
             raise RuntimeError("PSyclone is not available.")
+
+        # Convert the old style API nemo to be empty
+        if api and api.lower() == "nemo":
+            api = ""
 
         if api:
             # API specified, we need both psy- and alg-file, but not
@@ -143,7 +147,7 @@ class Psyclone(Tool):
                                    "alg_file is specified.")
             if not transformed_file:
                 raise RuntimeError("PSyclone called without api, but "
-                                   "transformed_file it not specified.")
+                                   "transformed_file is not specified.")
 
         parameters: List[Union[str, Path]] = []
         # If an api is defined in this call (or in the constructor) add it
