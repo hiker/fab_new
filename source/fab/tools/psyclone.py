@@ -82,7 +82,8 @@ class Psyclone(Tool):
             except RuntimeError as err:
                 if "Unsupported PSyKAL DSL / API 'nemo' specified" in str(err):
                     # It is current development. Just give it a version number
-                    # greater than 2.5.0
+                    # greater than 2.5.0 for now, till the official release
+                    # is done.
                     version = (2, 5, 0, 1)
 
         self._version = version
