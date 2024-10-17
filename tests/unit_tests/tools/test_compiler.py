@@ -20,7 +20,8 @@ from fab.tools import (Category, CCompiler, Compiler, FortranCompiler,
 
 def test_compiler():
     '''Test the compiler constructor.'''
-    cc = Compiler("gcc", "gcc", "gnu", category=Category.C_COMPILER, openmp_flag="-fopenmp")
+    cc = Compiler("gcc", "gcc", "gnu", version_regex="some_regex",
+                  category=Category.C_COMPILER, openmp_flag="-fopenmp")
     assert cc.category == Category.C_COMPILER
     assert cc._compile_flag == "-c"
     assert cc._output_flag == "-o"
@@ -29,13 +30,9 @@ def test_compiler():
     assert cc.suite == "gnu"
     assert not cc.mpi
     assert cc.openmp_flag == "-fopenmp"
-    with pytest.raises(NotImplementedError) as err:
-        cc.parse_version_output(Category.FORTRAN_COMPILER, "NOT NEEDED")
-    assert ("The method `parse_version_output` must be provided using a mixin."
-            in str(err.value))
 
     fc = FortranCompiler("gfortran", "gfortran", "gnu", openmp_flag="-fopenmp",
-                         module_folder_flag="-J")
+                         version_regex="something", module_folder_flag="-J")
     assert fc._compile_flag == "-c"
     assert fc._output_flag == "-o"
     assert fc.category == Category.FORTRAN_COMPILER
@@ -44,10 +41,6 @@ def test_compiler():
     assert fc.flags == []
     assert not fc.mpi
     assert fc.openmp_flag == "-fopenmp"
-    with pytest.raises(NotImplementedError) as err:
-        fc.parse_version_output(Category.FORTRAN_COMPILER, "NOT NEEDED")
-    assert ("The method `parse_version_output` must be provided using a mixin."
-            in str(err.value))
 
 
 def test_compiler_check_available():
@@ -121,16 +114,19 @@ def test_compiler_with_env_fflags():
 def test_compiler_syntax_only():
     '''Tests handling of syntax only flags.'''
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp", module_folder_flag="-J")
     # Empty since no flag is defined
     assert not fc.has_syntax_only
 
     fc = FortranCompiler("gfortran", "gfortran", "gnu", openmp_flag="-fopenmp",
-                         module_folder_flag="-J", syntax_only_flag=None)
+                         version_regex="something", module_folder_flag="-J",
+                         syntax_only_flag=None)
     # Empty since no flag is defined
     assert not fc.has_syntax_only
 
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J",
                          syntax_only_flag="-fsyntax-only")
@@ -141,6 +137,7 @@ def test_compiler_syntax_only():
 def test_compiler_without_openmp():
     '''Tests that the openmp flag is not used when openmp is not enabled. '''
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J",
                          syntax_only_flag="-fsyntax-only")
@@ -157,6 +154,7 @@ def test_compiler_with_openmp():
     '''Tests that the openmp flag is used as expected if openmp is enabled.
     '''
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J",
                          syntax_only_flag="-fsyntax-only")
@@ -172,7 +170,7 @@ def test_compiler_with_openmp():
 def test_compiler_module_output():
     '''Tests handling of module output_flags.'''
     fc = FortranCompiler("gfortran", "gfortran", suite="gnu",
-                         module_folder_flag="-J")
+                         version_regex="something", module_folder_flag="-J")
     fc.set_module_output_path("/module_out")
     assert fc._module_output_path == "/module_out"
     fc.run = mock.MagicMock()
@@ -185,6 +183,7 @@ def test_compiler_module_output():
 def test_compiler_with_add_args():
     '''Tests that additional arguments are handled as expected.'''
     fc = FortranCompiler("gfortran", "gfortran", suite="gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J")
     fc.set_module_output_path("/module_out")

@@ -36,12 +36,9 @@ class CompilerWrapper(Compiler):
             name=name, exec_name=exec_name,
             category=self._compiler.category,
             suite=self._compiler.suite,
+            version_regex=self._compiler._version_regex,
             mpi=mpi,
             availability_option=self._compiler.availability_option)
-        # We need to have the right version to parse the version output
-        # So we set this function based on the function that the
-        # wrapped compiler uses:
-        setattr(self, "parse_version_output", compiler.parse_version_output)
 
     def __str__(self):
         return f"{type(self).__name__}({self._compiler.name})"
