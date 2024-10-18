@@ -12,7 +12,8 @@ from fab.tools.category import Category
 from fab.tools.compiler import (CCompiler, Compiler, Craycc, Crayftn,
                                 FortranCompiler, Gcc, Gfortran, Icc,
                                 Icx, Ifort, Ifx, Nvc, Nvfortran)
-from fab.tools.compiler_wrapper import CompilerWrapper, Mpicc, Mpif90
+from fab.tools.compiler_wrapper import (CompilerWrapper, CrayCc, CrayFtn,
+                                        Mpicc, Mpif90)
 from fab.tools.flags import Flags
 from fab.tools.linker import Linker
 from fab.tools.psyclone import Psyclone
@@ -33,7 +34,9 @@ __all__ = ["Ar",
            "Cpp",
            "CppFortran",
            "Craycc",
+           "CrayCc",
            "Crayftn",
+           "CrayFtn",
            "Fcm",
            "Flags",
            "FortranCompiler",

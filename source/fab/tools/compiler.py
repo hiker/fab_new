@@ -158,12 +158,10 @@ class Compiler(CompilerSuiteTool):
         # Multiline is required in case that the version number is the end
         # of the string, otherwise the $ would not match the end of line
         matches = re.search(self._version_regex, output, re.MULTILINE)
-        print("XXX", output, matches)
         if not matches:
             raise RuntimeError(f"Unexpected version output format for "
                                f"compiler '{self.name}': {output}")
         version_string = matches.groups()[0]
-        print("YYY", matches.groups(), version_string)
         # Expect the version to be dot-separated integers.
         try:
             version = tuple(int(x) for x in version_string.split('.'))

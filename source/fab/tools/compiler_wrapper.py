@@ -193,3 +193,27 @@ class Mpicc(CompilerWrapper):
     def __init__(self, compiler: Compiler):
         super().__init__(name=f"mpicc-{compiler.name}",
                          exec_name="mpicc", compiler=compiler, mpi=True)
+
+
+# ============================================================================
+class CrayFtn(CompilerWrapper):
+    '''Class for the Cray Fortran compiler wrapper.
+
+    :param compiler: the compiler that the ftn wrapper will use.
+    '''
+
+    def __init__(self, compiler: Compiler):
+        super().__init__(name=f"crayftn-{compiler.name}",
+                         exec_name="ftn", compiler=compiler, mpi=True)
+
+
+# ============================================================================
+class CrayCc(CompilerWrapper):
+    '''Class for the Cray C compiler wrapper
+
+    :param compiler: the compiler that the mpicc wrapper will use.
+    '''
+
+    def __init__(self, compiler: Compiler):
+        super().__init__(name=f"craycc-{compiler.name}",
+                         exec_name="cc", compiler=compiler, mpi=True)
