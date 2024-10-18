@@ -15,7 +15,7 @@ from unittest import mock
 import pytest
 
 from fab.tools import (Category, CCompiler, Compiler, FortranCompiler,
-                       Gcc, Gfortran, Icc, Icx, Ifort, Ifx)
+                       Gcc, Gfortran, Icc, Icx, Ifort, Ifx, Nvc, Nvfortran)
 
 
 def test_compiler():
@@ -205,6 +205,9 @@ def test_compiler_with_add_args():
                         openmp=True, syntax_only=True)
 
 
+# ============================================================================
+# Test version number handling
+# ============================================================================
 def test_get_version_string():
     '''Tests the get_version_string() method.
     '''
@@ -366,6 +369,8 @@ def test_get_version_bad_result_is_not_cached():
 
 
 # ============================================================================
+# gcc
+# ============================================================================
 def test_gcc():
     '''Tests the gcc class.'''
     gcc = Gcc()
@@ -400,6 +405,8 @@ def test_gcc_get_version_with_icc_string():
         assert "Unexpected version output format for compiler" in str(err.value)
 
 
+# ============================================================================
+# gfortran
 # ============================================================================
 def test_gfortran():
     '''Tests the gfortran class.'''
@@ -484,7 +491,8 @@ def test_gfortran_get_version_12():
 
     """)
     gfortran = Gfortran()
-    with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
+    with mock.patch.object(gfortran, "run",
+                           mock.Mock(return_value=full_output)):
         assert gfortran.get_version() == (12, 1, 0)
 
 
@@ -496,12 +504,16 @@ def test_gfortran_get_version_with_ifort_string():
 
     """)
     gfortran = Gfortran()
-    with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
+    with mock.patch.object(gfortran, "run",
+                           mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             gfortran.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
 
 
+# ============================================================================
+# icc
 # ============================================================================
 def test_icc():
     '''Tests the icc class.'''
@@ -534,9 +546,12 @@ def test_icc_get_version_with_gcc_string():
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icc.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
 
 
+# ============================================================================
+# ifort
 # ============================================================================
 def test_ifort():
     '''Tests the ifort class.'''
@@ -606,7 +621,8 @@ def test_ifort_get_version_with_icc_string():
     with mock.patch.object(ifort, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             ifort.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
 
 
 @pytest.mark.parametrize("version", ["5.15f.2",
@@ -625,9 +641,12 @@ def test_ifort_get_version_invalid_version(version):
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icc.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
 
 
+# ============================================================================
+# icx
 # ============================================================================
 def test_icx():
     '''Tests the icx class.'''
@@ -645,7 +664,8 @@ Intel(R) oneAPI DPC++/C++ Compiler 2023.0.0 (2023.0.0.20221201)
 Target: x86_64-unknown-linux-gnu
 Thread model: posix
 InstalledDir: /opt/intel/oneapi/compiler/2023.0.0/linux/bin-llvm
-Configuration file: /opt/intel/oneapi/compiler/2023.0.0/linux/bin-llvm/../bin/icx.cfg
+Configuration file: /opt/intel/oneapi/compiler/2023.0.0/linux/bin-llvm/"""
+                         """../bin/icx.cfg
 
     """)
     icx = Icx()
@@ -664,9 +684,12 @@ def test_icx_get_version_with_icc_string():
     with mock.patch.object(icx, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icx.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
 
 
+# ============================================================================
+# ifx
 # ============================================================================
 def test_ifx():
     '''Tests the ifx class.'''
@@ -689,15 +712,98 @@ Copyright (C) 1985-2022 Intel Corporation. All rights reserved.
         assert ifx.get_version() == (2023, 0, 0)
 
 
-def test_ifx_get_version_with_icc_string():
+def test_ifx_get_version_with_ifort_string():
     '''Tests the ifx class with an icc version output.'''
     full_output = dedent("""
-        icc (ICC) 2021.10.0 20230609
-        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+        ifort (IFORT) 19.0.0.117 20180804
+        Copyright (C) 1985-2018 Intel Corporation.  All rights reserved.
 
     """)
     ifx = Ifx()
     with mock.patch.object(ifx, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             ifx.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# nvc
+# ============================================================================
+def test_nvc():
+    '''Tests the nvc class.'''
+    nvc = Nvc()
+    assert nvc.name == "nvc"
+    assert isinstance(nvc, CCompiler)
+    assert nvc.category == Category.C_COMPILER
+    assert not nvc.mpi
+
+
+def test_nvc_get_version_2023():
+    '''Test nvc .23.5 version detection.'''
+    full_output = dedent("""
+
+nvc 23.5-0 64-bit target on x86-64 Linux -tp icelake-server
+NVIDIA Compilers and Tools
+Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
+    """)
+    nvc = Nvc()
+    with mock.patch.object(nvc, "run", mock.Mock(return_value=full_output)):
+        assert nvc.get_version() == (23, 5, 0)
+
+
+def test_nvc_get_version_with_icc_string():
+    '''Tests the nvc class with an icc version output.'''
+    full_output = dedent("""
+        icc (ICC) 2021.10.0 20230609
+        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+
+    """)
+    nvc = Nvc()
+    with mock.patch.object(nvc, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            nvc.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# nvfortran
+# ============================================================================
+def test_nvfortran():
+    '''Tests the nvfortran class.'''
+    nvfortran = Nvfortran()
+    assert nvfortran.name == "nvfortran"
+    assert isinstance(nvfortran, FortranCompiler)
+    assert nvfortran.category == Category.FORTRAN_COMPILER
+    assert not nvfortran.mpi
+
+
+def test_nvfortran_get_version_2023():
+    '''Test nvfortran .23.5 version detection.'''
+    full_output = dedent("""
+
+nvfortran 23.5-0 64-bit target on x86-64 Linux -tp icelake-server
+NVIDIA Compilers and Tools
+Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
+    """)
+    nvfortran = Nvfortran()
+    with mock.patch.object(nvfortran, "run",
+                           mock.Mock(return_value=full_output)):
+        assert nvfortran.get_version() == (23, 5, 0)
+
+
+def test_nvfortran_get_version_with_ifort_string():
+    '''Tests the nvfortran class with an icc version output.'''
+    full_output = dedent("""
+        ifort (IFORT) 19.0.0.117 20180804
+        Copyright (C) 1985-2018 Intel Corporation.  All rights reserved.
+
+    """)
+    nvfortran = Nvfortran()
+    with mock.patch.object(nvfortran, "run",
+                           mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            nvfortran.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
