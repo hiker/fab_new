@@ -391,6 +391,20 @@ class Icc(CCompiler):
 
 
 # ============================================================================
+class Icx(CCompiler):
+    '''Class for the Intel's new llvm based icx compiler.
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+    def __init__(self, name: str = "icx", exec_name: str = "icx"):
+        super().__init__(name, exec_name, suite="intel-llvm",
+                         openmp_flag="-qopenmp",
+                         version_regex=(r"Intel\(R\) oneAPI DPC\+\+/C\+\+ "
+                                        r"Compiler (\d[\d\.]+\d) "))
+
+
+# ============================================================================
 class Ifort(FortranCompiler):
     '''Class for Intel's ifort compiler.
 
@@ -404,3 +418,19 @@ class Ifort(FortranCompiler):
                          openmp_flag="-qopenmp",
                          syntax_only_flag="-syntax-only",
                          version_regex=r"ifort \(IFORT\) (\d[\d\.]+\d) ")
+
+
+# ============================================================================
+class Ifx(FortranCompiler):
+    '''Class for Intel's new ifx compiler.
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+
+    def __init__(self, name: str = "ifx", exec_name: str = "ifx"):
+        super().__init__(name, exec_name, suite="intel-llvm",
+                         module_folder_flag="-module",
+                         openmp_flag="-qopenmp",
+                         syntax_only_flag="-syntax-only",
+                         version_regex=r"ifx \(IFORT\) (\d[\d\.]+\d) ")

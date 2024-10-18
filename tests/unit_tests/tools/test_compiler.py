@@ -15,7 +15,7 @@ from unittest import mock
 import pytest
 
 from fab.tools import (Category, CCompiler, Compiler, FortranCompiler,
-                       Gcc, Gfortran, Icc, Ifort)
+                       Gcc, Gfortran, Icc, Icx, Ifort, Ifx)
 
 
 def test_compiler():
@@ -625,4 +625,79 @@ def test_ifort_get_version_invalid_version(version):
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icc.get_version()
+        assert "Unexpected version output format for compiler" in str(err.value)
+
+
+# ============================================================================
+def test_icx():
+    '''Tests the icx class.'''
+    icx = Icx()
+    assert icx.name == "icx"
+    assert isinstance(icx, CCompiler)
+    assert icx.category == Category.C_COMPILER
+    assert not icx.mpi
+
+
+def test_icx_get_version_2023():
+    '''Test icx 2023.0.0 version detection.'''
+    full_output = dedent("""
+Intel(R) oneAPI DPC++/C++ Compiler 2023.0.0 (2023.0.0.20221201)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/intel/oneapi/compiler/2023.0.0/linux/bin-llvm
+Configuration file: /opt/intel/oneapi/compiler/2023.0.0/linux/bin-llvm/../bin/icx.cfg
+
+    """)
+    icx = Icx()
+    with mock.patch.object(icx, "run", mock.Mock(return_value=full_output)):
+        assert icx.get_version() == (2023, 0, 0)
+
+
+def test_icx_get_version_with_icc_string():
+    '''Tests the icx class with an icc version output.'''
+    full_output = dedent("""
+        icc (ICC) 2021.10.0 20230609
+        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+
+    """)
+    icx = Icx()
+    with mock.patch.object(icx, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            icx.get_version()
+        assert "Unexpected version output format for compiler" in str(err.value)
+
+
+# ============================================================================
+def test_ifx():
+    '''Tests the ifx class.'''
+    ifx = Ifx()
+    assert ifx.name == "ifx"
+    assert isinstance(ifx, FortranCompiler)
+    assert ifx.category == Category.FORTRAN_COMPILER
+    assert not ifx.mpi
+
+
+def test_ifx_get_version_2023():
+    '''Test ifx 2023.0.0 version detection.'''
+    full_output = dedent("""
+ifx (IFORT) 2023.0.0 20221201
+Copyright (C) 1985-2022 Intel Corporation. All rights reserved.
+
+    """)
+    ifx = Ifx()
+    with mock.patch.object(ifx, "run", mock.Mock(return_value=full_output)):
+        assert ifx.get_version() == (2023, 0, 0)
+
+
+def test_ifx_get_version_with_icc_string():
+    '''Tests the ifx class with an icc version output.'''
+    full_output = dedent("""
+        icc (ICC) 2021.10.0 20230609
+        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+
+    """)
+    ifx = Ifx()
+    with mock.patch.object(ifx, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            ifx.get_version()
         assert "Unexpected version output format for compiler" in str(err.value)
