@@ -14,8 +14,9 @@ from unittest import mock
 
 import pytest
 
-from fab.tools import (Category, CCompiler, Compiler, FortranCompiler,
-                       Gcc, Gfortran, Icc, Icx, Ifort, Ifx, Nvc, Nvfortran)
+from fab.tools import (Category, CCompiler, Compiler, Craycc, Crayftn,
+                       FortranCompiler, Gcc, Gfortran, Icc, Icx, Ifort, Ifx,
+                       Nvc, Nvfortran)
 
 
 def test_compiler():
@@ -739,8 +740,8 @@ def test_nvc():
     assert not nvc.mpi
 
 
-def test_nvc_get_version_2023():
-    '''Test nvc .23.5 version detection.'''
+def test_nvc_get_version_23_5_0():
+    '''Test nvc 23.5.0 version detection.'''
     full_output = dedent("""
 
 nvc 23.5-0 64-bit target on x86-64 Linux -tp icelake-server
@@ -779,8 +780,8 @@ def test_nvfortran():
     assert not nvfortran.mpi
 
 
-def test_nvfortran_get_version_2023():
-    '''Test nvfortran .23.5 version detection.'''
+def test_nvfortran_get_version_23_5_0():
+    '''Test nvfortran 23.5 version detection.'''
     full_output = dedent("""
 
 nvfortran 23.5-0 64-bit target on x86-64 Linux -tp icelake-server
@@ -805,5 +806,121 @@ def test_nvfortran_get_version_with_ifort_string():
                            mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             nvfortran.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# Craycc
+# ============================================================================
+def test_craycc():
+    '''Tests the Craycc class.'''
+    craycc = Craycc()
+    assert craycc.name == "craycc"
+    assert isinstance(craycc, CCompiler)
+    assert craycc.category == Category.C_COMPILER
+    assert craycc.mpi
+
+
+def test_craycc_get_version_8_7_0():
+    '''Test craycc .23.5 version detection.'''
+    full_output = dedent("""
+Cray C : Version 8.7.0  Tue Jul 23, 2024  07:39:46
+
+    """)
+    craycc = Craycc()
+    with mock.patch.object(craycc, "run", mock.Mock(return_value=full_output)):
+        assert craycc.get_version() == (8, 7, 0)
+
+
+def test_craycc_get_version_2023():
+    '''Test craycc .23.5 version detection.'''
+    full_output = dedent("""
+Cray clang version 15.0.1  (66f7391d6a03cf932f321b9f6b1d8612ef5f362c)
+
+Target: x86_64-unknown-linux-gnu
+
+Thread model: posix
+
+InstalledDir: /opt/cray/pe/cce/15.0.1/cce-clang/x86_64/share/../bin
+
+Found candidate GCC installation: /opt/gcc/10.3.0/snos/lib/gcc/x86_64-"""
+                         """suse-linux/10.3.0
+
+Selected GCC installation: /opt/gcc/10.3.0/snos/lib/gcc/x86_64-suse-"""
+                         """linux/10.3.0
+
+Candidate multilib: .;@m64
+
+Selected multilib: .;@m64
+
+OFFICIAL
+    """)
+    craycc = Craycc()
+    with mock.patch.object(craycc, "run", mock.Mock(return_value=full_output)):
+        assert craycc.get_version() == (15, 0, 1)
+
+
+def test_craycc_get_version_with_icc_string():
+    '''Tests the Craycc class with an icc version output.'''
+    full_output = dedent("""
+        icc (ICC) 2021.10.0 20230609
+        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+
+    """)
+    craycc = Craycc()
+    with mock.patch.object(craycc, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            craycc.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# Crayftn
+# ============================================================================
+def test_crayftn():
+    '''Tests the Crayftn class.'''
+    crayftn = Crayftn()
+    assert crayftn.name == "crayftn"
+    assert isinstance(crayftn, FortranCompiler)
+    assert crayftn.category == Category.FORTRAN_COMPILER
+    assert crayftn.mpi
+
+
+def test_crayftn_get_version_8_7_0():
+    '''Test crayftn .23.5 version detection.'''
+    full_output = dedent("""
+Cray Fortran : Version 8.7.0  Tue Jul 23, 2024  07:39:25
+    """)
+    crayftn = Crayftn()
+    with mock.patch.object(crayftn, "run",
+                           mock.Mock(return_value=full_output)):
+        assert crayftn.get_version() == (8, 7, 0)
+
+
+def test_crayftn_get_version_15_0_1():
+    '''Test Crayftn 15.0.1 version detection.'''
+    full_output = dedent("""
+Cray Fortran : Version 15.0.1  Tue Jul 23, 2024  07:39:25
+    """)
+    crayftn = Crayftn()
+    with mock.patch.object(crayftn, "run",
+                           mock.Mock(return_value=full_output)):
+        assert crayftn.get_version() == (15, 0, 1)
+
+
+def test_crayftn_get_version_with_ifort_string():
+    '''Tests the crayftn class with an icc version output.'''
+    full_output = dedent("""
+        ifort (IFORT) 19.0.0.117 20180804
+        Copyright (C) 1985-2018 Intel Corporation.  All rights reserved.
+
+    """)
+    crayftn = Crayftn()
+    with mock.patch.object(crayftn, "run",
+                           mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            crayftn.get_version()
         assert ("Unexpected version output format for compiler"
                 in str(err.value))

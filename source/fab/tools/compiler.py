@@ -158,11 +158,12 @@ class Compiler(CompilerSuiteTool):
         # Multiline is required in case that the version number is the end
         # of the string, otherwise the $ would not match the end of line
         matches = re.search(self._version_regex, output, re.MULTILINE)
+        print("XXX", output, matches)
         if not matches:
             raise RuntimeError(f"Unexpected version output format for "
                                f"compiler '{self.name}': {output}")
         version_string = matches.groups()[0]
-
+        print("YYY", matches.groups(), version_string)
         # Expect the version to be dot-separated integers.
         try:
             version = tuple(int(x) for x in version_string.split('.'))
@@ -338,6 +339,8 @@ class FortranCompiler(Compiler):
 
 
 # ============================================================================
+# Gnu
+# ============================================================================
 class Gcc(CCompiler):
     '''Class for GNU's gcc compiler.
 
@@ -378,7 +381,7 @@ class Gfortran(FortranCompiler):
 
 # ============================================================================
 # intel-classic
-#
+# ============================================================================
 class Icc(CCompiler):
     '''Class for the Intel's icc compiler.
 
@@ -410,7 +413,7 @@ class Ifort(FortranCompiler):
 
 # ============================================================================
 # intel-llvm
-#
+# ============================================================================
 class Icx(CCompiler):
     '''Class for the Intel's new llvm based icx compiler.
 
@@ -442,7 +445,7 @@ class Ifx(FortranCompiler):
 
 # ============================================================================
 # nvidia
-#
+# ============================================================================
 class Nvc(CCompiler):
     '''Class for Nvidia's nvc compiler. Nvc has a '-' in the
     version number. In order to get this, we overwrite run_version_command
@@ -502,3 +505,42 @@ class Nvfortran(FortranCompiler):
         '''
         version_string = super().run_version_command()
         return version_string.replace("-", ".")
+
+
+# ============================================================================
+# Cray compiler
+# ============================================================================
+class Craycc(CCompiler):
+    '''Class for the native Cray C compiler. Cray has two different compilers.
+    Older ones have as version number:
+        Cray C : Version 8.7.0  Tue Jul 23, 2024  07:39:46
+    Newer compiler (several lines, the important one):
+        Cray clang version 15.0.1  (66f7391d6a03cf932f321b9f6b1d8612ef5f362c)
+    We use the beginning ("cray c") to identify the compiler, which works for
+    both cray c and cray clang. Then we ignore non-numbers, to reach the
+    version number which is then extracted.
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+    def __init__(self, name: str = "craycc", exec_name: str = "craycc"):
+        super().__init__(name, exec_name, suite="cray", mpi=True,
+                         openmp_flag="-qopenmp",
+                         version_regex=r"Cray [Cc][^\d]* (\d[\d\.]+\d)  ")
+
+
+# ============================================================================
+class Crayftn(FortranCompiler):
+    '''Class for the native Cray Fortran compiler.
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+
+    def __init__(self, name: str = "crayftn", exec_name: str = "crayftn"):
+        super().__init__(name, exec_name, suite="cray", mpi=True,
+                         module_folder_flag="-module",
+                         openmp_flag="-qopenmp",
+                         syntax_only_flag="-syntax-only",
+                         version_regex=(r"Cray Fortran : Version "
+                                        r"(\d[\d\.]+\d)  "))
