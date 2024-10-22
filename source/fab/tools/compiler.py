@@ -509,8 +509,11 @@ class Nvfortran(FortranCompiler):
 # Cray compiler
 # ============================================================================
 class Craycc(CCompiler):
-    '''Class for the native Cray C compiler. Cray has two different compilers.
-    Older ones have as version number:
+    '''Class for the native Cray C compiler. Since cc is actually a compiler
+    wrapper, follow the naming scheme of a compiler wrapper and call it:
+    craycc-cray.
+
+    Cray has two different compilers. Older ones have as version number:
         Cray C : Version 8.7.0  Tue Jul 23, 2024  07:39:46
     Newer compiler (several lines, the important one):
         Cray clang version 15.0.1  (66f7391d6a03cf932f321b9f6b1d8612ef5f362c)
@@ -521,24 +524,26 @@ class Craycc(CCompiler):
     :param name: name of this compiler.
     :param exec_name: name of the executable.
     '''
-    def __init__(self, name: str = "craycc", exec_name: str = "craycc"):
+    def __init__(self, name: str = "craycc-cray", exec_name: str = "cc"):
         super().__init__(name, exec_name, suite="cray", mpi=True,
-                         openmp_flag="-qopenmp",
+                         openmp_flag="-homp",
                          version_regex=r"Cray [Cc][^\d]* (\d[\d\.]+\d)  ")
 
 
 # ============================================================================
 class Crayftn(FortranCompiler):
-    '''Class for the native Cray Fortran compiler.
+    '''Class for the native Cray Fortran compiler. Since ftn is actually a
+    compiler wrapper, follow the naming scheme of Cray compiler wrapper
+    and call it crayftn-cray.
 
     :param name: name of this compiler.
     :param exec_name: name of the executable.
     '''
 
-    def __init__(self, name: str = "crayftn", exec_name: str = "crayftn"):
+    def __init__(self, name: str = "crayftn-cray", exec_name: str = "ftn"):
         super().__init__(name, exec_name, suite="cray", mpi=True,
-                         module_folder_flag="-module",
-                         openmp_flag="-qopenmp",
+                         module_folder_flag="-J",
+                         openmp_flag="-homp",
                          syntax_only_flag="-syntax-only",
                          version_regex=(r"Cray Fortran : Version "
                                         r"(\d[\d\.]+\d)  "))
