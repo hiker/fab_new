@@ -524,7 +524,7 @@ class Craycc(CCompiler):
     :param name: name of this compiler.
     :param exec_name: name of the executable.
     '''
-    def __init__(self, name: str = "craycc-cray", exec_name: str = "cc"):
+    def __init__(self, name: str = "craycc-cc", exec_name: str = "cc"):
         super().__init__(name, exec_name, suite="cray", mpi=True,
                          openmp_flag="-homp",
                          version_regex=r"Cray [Cc][^\d]* (\d[\d\.]+\d)  ")
@@ -540,7 +540,7 @@ class Crayftn(FortranCompiler):
     :param exec_name: name of the executable.
     '''
 
-    def __init__(self, name: str = "crayftn-cray", exec_name: str = "ftn"):
+    def __init__(self, name: str = "crayftn-ftn", exec_name: str = "ftn"):
         super().__init__(name, exec_name, suite="cray", mpi=True,
                          module_folder_flag="-J",
                          openmp_flag="-homp",
