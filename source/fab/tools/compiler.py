@@ -30,6 +30,9 @@ class Compiler(CompilerSuiteTool):
     :param name: name of the compiler.
     :param exec_name: name of the executable to start.
     :param suite: name of the compiler suite this tool belongs to.
+    :param version_regex: A regular expression that allows extraction of
+        the version number from the version output of the compiler. The
+        version is taken from the first group of a match.
     :param category: the Category (C_COMPILER or FORTRAN_COMPILER).
     :param compile_flag: the compilation flag to use when only requesting
         compilation (not linking).
@@ -46,12 +49,13 @@ class Compiler(CompilerSuiteTool):
     def __init__(self, name: str,
                  exec_name: Union[str, Path],
                  suite: str,
+                 version_regex: str,
                  category: Category,
                  mpi: bool = False,
                  compile_flag: Optional[str] = None,
                  output_flag: Optional[str] = None,
                  openmp_flag: Optional[str] = None,
-                 availability_option: Optional[str] = None):
+                 availability_option: Optional[Union[str, List[str]]] = None):
         super().__init__(name, exec_name, suite, category=category,
                          availability_option=availability_option)
         self._version: Union[Tuple[int, ...], None] = None
@@ -60,6 +64,7 @@ class Compiler(CompilerSuiteTool):
         self._output_flag = output_flag if output_flag else "-o"
         self._openmp_flag = openmp_flag if openmp_flag else ""
         self.flags.extend(os.getenv("FFLAGS", "").split())
+        self._version_regex = version_regex
 
     @property
     def mpi(self) -> bool:
@@ -149,8 +154,14 @@ class Compiler(CompilerSuiteTool):
         # Run the compiler to get the version and parse the output
         # The implementations depend on vendor
         output = self.run_version_command()
-        version_string = self.parse_version_output(self.category, output)
 
+        # Multiline is required in case that the version number is the end
+        # of the string, otherwise the $ would not match the end of line
+        matches = re.search(self._version_regex, output, re.MULTILINE)
+        if not matches:
+            raise RuntimeError(f"Unexpected version output format for "
+                               f"compiler '{self.name}': {output}")
+        version_string = matches.groups()[0]
         # Expect the version to be dot-separated integers.
         try:
             version = tuple(int(x) for x in version_string.split('.'))
@@ -188,15 +199,6 @@ class Compiler(CompilerSuiteTool):
             raise RuntimeError(f"Error asking for version of compiler "
                                f"'{self.name}'") from err
 
-    def parse_version_output(self, category: Category,
-                             version_output: str) -> str:
-        '''
-        Extract the numerical part from the version output.
-        Implemented in specific compilers.
-        '''
-        raise NotImplementedError("The method `parse_version_output` must be "
-                                  "provided using a mixin.")
-
     def get_version_string(self) -> str:
         """
         Get a string representing the version of the given compiler.
@@ -219,6 +221,8 @@ class CCompiler(Compiler):
     :param name: name of the compiler.
     :param exec_name: name of the executable to start.
     :param suite: name of the compiler suite.
+    :param version_regex: A regular expression that allows extraction of
+        the version number from the version output of the compiler.
     :param mpi: whether the compiler or linker support MPI.
     :param compile_flag: the compilation flag to use when only requesting
         compilation (not linking).
@@ -229,6 +233,7 @@ class CCompiler(Compiler):
 
     # pylint: disable=too-many-arguments
     def __init__(self, name: str, exec_name: str, suite: str,
+                 version_regex: str,
                  mpi: bool = False,
                  compile_flag: Optional[str] = None,
                  output_flag: Optional[str] = None,
@@ -236,7 +241,8 @@ class CCompiler(Compiler):
         super().__init__(name, exec_name, suite,
                          category=Category.C_COMPILER, mpi=mpi,
                          compile_flag=compile_flag, output_flag=output_flag,
-                         openmp_flag=openmp_flag)
+                         openmp_flag=openmp_flag,
+                         version_regex=version_regex)
 
 
 # ============================================================================
@@ -248,6 +254,8 @@ class FortranCompiler(Compiler):
     :param name: name of the compiler.
     :param exec_name: name of the executable to start.
     :param suite: name of the compiler suite.
+    :param version_regex: A regular expression that allows extraction of
+        the version number from the version output of the compiler.
     :param mpi: whether MPI is supported by this compiler or not.
     :param compile_flag: the compilation flag to use when only requesting
         compilation (not linking).
@@ -262,6 +270,7 @@ class FortranCompiler(Compiler):
 
     # pylint: disable=too-many-arguments
     def __init__(self, name: str, exec_name: str, suite: str,
+                 version_regex: str,
                  mpi: bool = False,
                  compile_flag: Optional[str] = None,
                  output_flag: Optional[str] = None,
@@ -273,7 +282,8 @@ class FortranCompiler(Compiler):
         super().__init__(name=name, exec_name=exec_name, suite=suite,
                          category=Category.FORTRAN_COMPILER,
                          mpi=mpi, compile_flag=compile_flag,
-                         output_flag=output_flag, openmp_flag=openmp_flag)
+                         output_flag=output_flag, openmp_flag=openmp_flag,
+                         version_regex=version_regex)
         self._module_folder_flag = (module_folder_flag if module_folder_flag
                                     else "")
         self._syntax_only_flag = syntax_only_flag
@@ -327,45 +337,9 @@ class FortranCompiler(Compiler):
 
 
 # ============================================================================
-class GnuVersionHandling():
-    '''Mixin to handle version information from GNU compilers'''
-
-    def parse_version_output(self, category: Category,
-                             version_output: str) -> str:
-        '''
-        Extract the numerical part from a GNU compiler's version output
-
-        :param name: the compiler's name
-        :param category: the compiler's Category
-        :param version_output: the full version output from the compiler
-        :returns: the actual version as a string
-
-        :raises RuntimeError: if the output is not in an expected format.
-        '''
-
-        # Expect the version to appear after some in parentheses, e.g.
-        # "GNU Fortran (...) n.n[.n, ...]" or # "gcc (...) n.n[.n, ...]"
-        if category is Category.FORTRAN_COMPILER:
-            name = "GNU Fortran"
-        else:
-            name = "gcc"
-        # A version number is a digit, followed by a sequence of digits and
-        # '.'', ending with a digit. It must then be followed by either the
-        # end of the string, or a space (e.g. "... 5.6 123456"). We can't use
-        # \b to determine the end, since then "1.2." would be matched
-        # excluding the dot (so it would become a valid 1.2)
-        exp = name + r" \(.*?\) (\d[\d\.]+\d)(?:$| )"
-        # Multiline is required in case that the version number is the
-        # end of the string, otherwise the $ would not match the end of line
-        matches = re.search(exp, version_output, re.MULTILINE)
-        if not matches:
-            raise RuntimeError(f"Unexpected version output format for "
-                               f"compiler '{name}': {version_output}")
-        return matches.groups()[0]
-
-
+# Gnu
 # ============================================================================
-class Gcc(GnuVersionHandling, CCompiler):
+class Gcc(CCompiler):
     '''Class for GNU's gcc compiler.
 
     :param name: name of this compiler.
@@ -375,12 +349,18 @@ class Gcc(GnuVersionHandling, CCompiler):
                  name: str = "gcc",
                  exec_name: str = "gcc",
                  mpi: bool = False):
+        # A version number is a digit, followed by a sequence of digits and
+        # '.'', ending with a digit. It must then be followed by either the
+        # end of the string, or a space (e.g. "... 5.6 123456"). We can't use
+        # \b to determine the end, since then "1.2." would be matched
+        # excluding the dot (so it would become a valid 1.2)
         super().__init__(name, exec_name, suite="gnu", mpi=mpi,
-                         openmp_flag="-fopenmp")
+                         openmp_flag="-fopenmp",
+                         version_regex=r"gcc \(.*?\) (\d[\d\.]+\d)(?:$| )")
 
 
 # ============================================================================
-class Gfortran(GnuVersionHandling, FortranCompiler):
+class Gfortran(FortranCompiler):
     '''Class for GNU's gfortran compiler.
 
     :param name: name of this compiler.
@@ -392,45 +372,15 @@ class Gfortran(GnuVersionHandling, FortranCompiler):
         super().__init__(name, exec_name, suite="gnu",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J",
-                         syntax_only_flag="-fsyntax-only")
+                         syntax_only_flag="-fsyntax-only",
+                         version_regex=(r"GNU Fortran \(.*?\) "
+                                        r"(\d[\d\.]+\d)(?:$| )"))
 
 
 # ============================================================================
-class IntelVersionHandling():
-    '''Mixin to handle version information from Intel compilers'''
-
-    def parse_version_output(self, category: Category,
-                             version_output: str) -> str:
-        '''
-        Extract the numerical part from an Intel compiler's version output
-
-        :param name: the compiler's name
-        :param version_output: the full version output from the compiler
-        :returns: the actual version as a string
-
-        :raises RuntimeError: if the output is not in an expected format.
-        '''
-
-        # Expect the version to appear after some in parentheses, e.g.
-        # "icc (...) n.n[.n, ...]" or "ifort (...) n.n[.n, ...]"
-        if category == Category.C_COMPILER:
-            name = "icc"
-        else:
-            name = "ifort"
-
-        # A version number is a digit, followed by a sequence of digits and
-        # '.'', ending with a digit. It must then be followed by a space.
-        exp = name + r" \(.*?\) (\d[\d\.]+\d) "
-        matches = re.search(exp, version_output)
-
-        if not matches:
-            raise RuntimeError(f"Unexpected version output format for "
-                               f"compiler '{name}': {version_output}")
-        return matches.groups()[0]
-
-
+# intel-classic
 # ============================================================================
-class Icc(IntelVersionHandling, CCompiler):
+class Icc(CCompiler):
     '''Class for the Intel's icc compiler.
 
     :param name: name of this compiler.
@@ -439,11 +389,12 @@ class Icc(IntelVersionHandling, CCompiler):
 
     def __init__(self, name: str = "icc", exec_name: str = "icc"):
         super().__init__(name, exec_name, suite="intel-classic",
-                         openmp_flag="-qopenmp")
+                         openmp_flag="-qopenmp",
+                         version_regex=r"icc \(ICC\) (\d[\d\.]+\d) ")
 
 
 # ============================================================================
-class Ifort(IntelVersionHandling, FortranCompiler):
+class Ifort(FortranCompiler):
     '''Class for Intel's ifort compiler.
 
     :param name: name of this compiler.
@@ -454,4 +405,145 @@ class Ifort(IntelVersionHandling, FortranCompiler):
         super().__init__(name, exec_name, suite="intel-classic",
                          module_folder_flag="-module",
                          openmp_flag="-qopenmp",
-                         syntax_only_flag="-syntax-only")
+                         syntax_only_flag="-syntax-only",
+                         version_regex=r"ifort \(IFORT\) (\d[\d\.]+\d) ")
+
+
+# ============================================================================
+# intel-llvm
+# ============================================================================
+class Icx(CCompiler):
+    '''Class for the Intel's new llvm based icx compiler.
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+    def __init__(self, name: str = "icx", exec_name: str = "icx"):
+        super().__init__(name, exec_name, suite="intel-llvm",
+                         openmp_flag="-qopenmp",
+                         version_regex=(r"Intel\(R\) oneAPI DPC\+\+/C\+\+ "
+                                        r"Compiler (\d[\d\.]+\d) "))
+
+
+# ============================================================================
+class Ifx(FortranCompiler):
+    '''Class for Intel's new ifx compiler.
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+
+    def __init__(self, name: str = "ifx", exec_name: str = "ifx"):
+        super().__init__(name, exec_name, suite="intel-llvm",
+                         module_folder_flag="-module",
+                         openmp_flag="-qopenmp",
+                         syntax_only_flag="-syntax-only",
+                         version_regex=r"ifx \(IFORT\) (\d[\d\.]+\d) ")
+
+
+# ============================================================================
+# nvidia
+# ============================================================================
+class Nvc(CCompiler):
+    '''Class for Nvidia's nvc compiler. Nvc has a '-' in the
+    version number. In order to get this, we overwrite run_version_command
+    and replace any '-' with a '.'
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+
+    def __init__(self, name: str = "nvc", exec_name: str = "nvc"):
+        super().__init__(name, exec_name, suite="nvidia",
+                         openmp_flag="-mp",
+                         version_regex=r"nvc (\d[\d\.-]+\d)")
+
+    def run_version_command(
+            self, version_command: Optional[str] = '--version') -> str:
+        '''Run the compiler's command to get its version. This implementation
+        runs the function in the base class, and changes any '-' into a
+        '.' to support nvidia version numbers which have dashes, e.g. 23.5-0.
+
+        :param version_command: The compiler argument used to get version info.
+
+        :returns: The output from the version command, with any '-' replaced
+            with '.'
+        '''
+        version_string = super().run_version_command()
+        return version_string.replace("-", ".")
+
+
+# ============================================================================
+class Nvfortran(FortranCompiler):
+    '''Class for Nvidia's nvfortran compiler. Nvfortran has a '-' in the
+    version number. In order to get this, we overwrite run_version_command
+    and replace any '-' with a '.'
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+
+    def __init__(self, name: str = "nvfortran", exec_name: str = "nvfortran"):
+        super().__init__(name, exec_name, suite="nvidia",
+                         module_folder_flag="-module",
+                         openmp_flag="-mp",
+                         syntax_only_flag="-Msyntax-only",
+                         version_regex=r"nvfortran (\d[\d\.-]+\d)")
+
+    def run_version_command(
+            self, version_command: Optional[str] = '--version') -> str:
+        '''Run the compiler's command to get its version. This implementation
+        runs the function in the base class, and changes any '-' into a
+        '.' to support nvidia version numbers which have dashes, e.g. 23.5-0.
+
+        :param version_command: The compiler argument used to get version info.
+
+        :returns: The output from the version command, with any '-' replaced
+            with '.'
+        '''
+        version_string = super().run_version_command()
+        return version_string.replace("-", ".")
+
+
+# ============================================================================
+# Cray compiler
+# ============================================================================
+class Craycc(CCompiler):
+    '''Class for the native Cray C compiler. Since cc is actually a compiler
+    wrapper, follow the naming scheme of a compiler wrapper and call it:
+    craycc-cray.
+
+    Cray has two different compilers. Older ones have as version number:
+        Cray C : Version 8.7.0  Tue Jul 23, 2024  07:39:46
+    Newer compiler (several lines, the important one):
+        Cray clang version 15.0.1  (66f7391d6a03cf932f321b9f6b1d8612ef5f362c)
+    We use the beginning ("cray c") to identify the compiler, which works for
+    both cray c and cray clang. Then we ignore non-numbers, to reach the
+    version number which is then extracted.
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+    def __init__(self, name: str = "craycc-cc", exec_name: str = "cc"):
+        super().__init__(name, exec_name, suite="cray", mpi=True,
+                         openmp_flag="-homp",
+                         version_regex=r"Cray [Cc][^\d]* (\d[\d\.]+\d)  ")
+
+
+# ============================================================================
+class Crayftn(FortranCompiler):
+    '''Class for the native Cray Fortran compiler. Since ftn is actually a
+    compiler wrapper, follow the naming scheme of Cray compiler wrapper
+    and call it crayftn-cray.
+
+    :param name: name of this compiler.
+    :param exec_name: name of the executable.
+    '''
+
+    def __init__(self, name: str = "crayftn-ftn", exec_name: str = "ftn"):
+        super().__init__(name, exec_name, suite="cray", mpi=True,
+                         module_folder_flag="-J",
+                         openmp_flag="-homp",
+                         syntax_only_flag="-syntax-only",
+                         version_regex=(r"Cray Fortran : Version "
+                                        r"(\d[\d\.]+\d)  "))

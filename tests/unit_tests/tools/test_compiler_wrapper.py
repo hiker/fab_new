@@ -12,8 +12,9 @@ from unittest import mock
 
 import pytest
 
-from fab.tools import (Category, CompilerWrapper, Gcc, Gfortran, Icc, Ifort,
-                       Mpicc, Mpif90, ToolRepository)
+from fab.tools import (Category, CompilerWrapper, CrayCc, CrayFtn,
+                       Gcc, Gfortran, Icc, Ifort, Mpicc, Mpif90,
+                       ToolRepository)
 
 
 def test_compiler_wrapper_compiler_getter():
@@ -346,3 +347,47 @@ def test_compiler_wrapper_mpi_ifort():
     assert mpi_ifort.category == Category.FORTRAN_COMPILER
     assert mpi_ifort.mpi
     assert mpi_ifort.suite == "intel-classic"
+
+
+def test_compiler_wrapper_cray_icc():
+    '''Tests the Cray wrapper for icc.'''
+    craycc = CrayCc(Icc())
+    assert craycc.name == "craycc-icc"
+    assert str(craycc) == "CrayCc(icc)"
+    assert isinstance(craycc, CompilerWrapper)
+    assert craycc.category == Category.C_COMPILER
+    assert craycc.mpi
+    assert craycc.suite == "intel-classic"
+
+
+def test_compiler_wrapper_cray_ifort():
+    '''Tests the Cray wrapper for ifort.'''
+    crayftn = CrayFtn(Ifort())
+    assert crayftn.name == "crayftn-ifort"
+    assert str(crayftn) == "CrayFtn(ifort)"
+    assert isinstance(crayftn, CompilerWrapper)
+    assert crayftn.category == Category.FORTRAN_COMPILER
+    assert crayftn.mpi
+    assert crayftn.suite == "intel-classic"
+
+
+def test_compiler_wrapper_cray_gcc():
+    '''Tests the Cray wrapper for gcc.'''
+    craycc = CrayCc(Gcc())
+    assert craycc.name == "craycc-gcc"
+    assert str(craycc) == "CrayCc(gcc)"
+    assert isinstance(craycc, CompilerWrapper)
+    assert craycc.category == Category.C_COMPILER
+    assert craycc.mpi
+    assert craycc.suite == "gnu"
+
+
+def test_compiler_wrapper_cray_gfortran():
+    '''Tests the Cray wrapper for gfortran.'''
+    crayftn = CrayFtn(Gfortran())
+    assert crayftn.name == "crayftn-gfortran"
+    assert str(crayftn) == "CrayFtn(gfortran)"
+    assert isinstance(crayftn, CompilerWrapper)
+    assert crayftn.category == Category.FORTRAN_COMPILER
+    assert crayftn.mpi
+    assert crayftn.suite == "gnu"

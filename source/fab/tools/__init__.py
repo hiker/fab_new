@@ -9,15 +9,17 @@
 
 from fab.tools.ar import Ar
 from fab.tools.category import Category
-from fab.tools.compiler import (CCompiler, Compiler, FortranCompiler, Gcc,
-                                Gfortran, GnuVersionHandling, Icc, Ifort,
-                                IntelVersionHandling)
-from fab.tools.compiler_wrapper import CompilerWrapper, Mpicc, Mpif90
+from fab.tools.compiler import (CCompiler, Compiler, Craycc, Crayftn,
+                                FortranCompiler, Gcc, Gfortran, Icc,
+                                Icx, Ifort, Ifx, Nvc, Nvfortran)
+from fab.tools.compiler_wrapper import (CompilerWrapper, CrayCc, CrayFtn,
+                                        Mpicc, Mpif90)
 from fab.tools.flags import Flags
 from fab.tools.linker import Linker
 from fab.tools.psyclone import Psyclone
 from fab.tools.rsync import Rsync
 from fab.tools.preprocessor import Cpp, CppFortran, Fpp, Preprocessor
+from fab.tools.shell import Shell
 from fab.tools.tool import Tool, CompilerSuiteTool
 # Order here is important to avoid a circular import
 from fab.tools.tool_repository import ToolRepository
@@ -32,6 +34,10 @@ __all__ = ["Ar",
            "CompilerWrapper",
            "Cpp",
            "CppFortran",
+           "Craycc",
+           "CrayCc",
+           "Crayftn",
+           "CrayFtn",
            "Fcm",
            "Flags",
            "FortranCompiler",
@@ -39,16 +45,19 @@ __all__ = ["Ar",
            "Gcc",
            "Gfortran",
            "Git",
-           "GnuVersionHandling",
            "Icc",
+           "Icx",
            "Ifort",
-           "IntelVersionHandling",
+           "Ifx",
            "Linker",
            "Mpif90",
            "Mpicc",
+           "Nvc",
+           "Nvfortran",
            "Preprocessor",
            "Psyclone",
            "Rsync",
+           "Shell",
            "Subversion",
            "Tool",
            "ToolBox",
