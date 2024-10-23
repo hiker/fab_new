@@ -138,6 +138,6 @@ def test_tool_repository_no_tool_available():
                     new_callable=mock.PropertyMock) as is_available:
         is_available.return_value = False
         with pytest.raises(RuntimeError) as err:
-            def_tool = tr.get_default(Category.SHELL)
+            tr.get_default(Category.SHELL)
         assert ("Can't find available 'SHELL' tool. Tools are 'bash,sh,ksh,"
                 "dash'" in str(err.value))
