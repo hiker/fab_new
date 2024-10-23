@@ -14,13 +14,15 @@ from unittest import mock
 
 import pytest
 
-from fab.tools import (Category, CCompiler, Compiler, FortranCompiler,
-                       Gcc, Gfortran, Icc, Ifort)
+from fab.tools import (Category, CCompiler, Compiler, Craycc, Crayftn,
+                       FortranCompiler, Gcc, Gfortran, Icc, Icx, Ifort, Ifx,
+                       Nvc, Nvfortran)
 
 
 def test_compiler():
     '''Test the compiler constructor.'''
-    cc = Compiler("gcc", "gcc", "gnu", category=Category.C_COMPILER, openmp_flag="-fopenmp")
+    cc = Compiler("gcc", "gcc", "gnu", version_regex="some_regex",
+                  category=Category.C_COMPILER, openmp_flag="-fopenmp")
     assert cc.category == Category.C_COMPILER
     assert cc._compile_flag == "-c"
     assert cc._output_flag == "-o"
@@ -29,13 +31,9 @@ def test_compiler():
     assert cc.suite == "gnu"
     assert not cc.mpi
     assert cc.openmp_flag == "-fopenmp"
-    with pytest.raises(NotImplementedError) as err:
-        cc.parse_version_output(Category.FORTRAN_COMPILER, "NOT NEEDED")
-    assert ("The method `parse_version_output` must be provided using a mixin."
-            in str(err.value))
 
     fc = FortranCompiler("gfortran", "gfortran", "gnu", openmp_flag="-fopenmp",
-                         module_folder_flag="-J")
+                         version_regex="something", module_folder_flag="-J")
     assert fc._compile_flag == "-c"
     assert fc._output_flag == "-o"
     assert fc.category == Category.FORTRAN_COMPILER
@@ -44,10 +42,6 @@ def test_compiler():
     assert fc.flags == []
     assert not fc.mpi
     assert fc.openmp_flag == "-fopenmp"
-    with pytest.raises(NotImplementedError) as err:
-        fc.parse_version_output(Category.FORTRAN_COMPILER, "NOT NEEDED")
-    assert ("The method `parse_version_output` must be provided using a mixin."
-            in str(err.value))
 
 
 def test_compiler_check_available():
@@ -121,16 +115,19 @@ def test_compiler_with_env_fflags():
 def test_compiler_syntax_only():
     '''Tests handling of syntax only flags.'''
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp", module_folder_flag="-J")
     # Empty since no flag is defined
     assert not fc.has_syntax_only
 
     fc = FortranCompiler("gfortran", "gfortran", "gnu", openmp_flag="-fopenmp",
-                         module_folder_flag="-J", syntax_only_flag=None)
+                         version_regex="something", module_folder_flag="-J",
+                         syntax_only_flag=None)
     # Empty since no flag is defined
     assert not fc.has_syntax_only
 
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J",
                          syntax_only_flag="-fsyntax-only")
@@ -141,6 +138,7 @@ def test_compiler_syntax_only():
 def test_compiler_without_openmp():
     '''Tests that the openmp flag is not used when openmp is not enabled. '''
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J",
                          syntax_only_flag="-fsyntax-only")
@@ -157,6 +155,7 @@ def test_compiler_with_openmp():
     '''Tests that the openmp flag is used as expected if openmp is enabled.
     '''
     fc = FortranCompiler("gfortran", "gfortran", "gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J",
                          syntax_only_flag="-fsyntax-only")
@@ -172,7 +171,7 @@ def test_compiler_with_openmp():
 def test_compiler_module_output():
     '''Tests handling of module output_flags.'''
     fc = FortranCompiler("gfortran", "gfortran", suite="gnu",
-                         module_folder_flag="-J")
+                         version_regex="something", module_folder_flag="-J")
     fc.set_module_output_path("/module_out")
     assert fc._module_output_path == "/module_out"
     fc.run = mock.MagicMock()
@@ -185,6 +184,7 @@ def test_compiler_module_output():
 def test_compiler_with_add_args():
     '''Tests that additional arguments are handled as expected.'''
     fc = FortranCompiler("gfortran", "gfortran", suite="gnu",
+                         version_regex="something",
                          openmp_flag="-fopenmp",
                          module_folder_flag="-J")
     fc.set_module_output_path("/module_out")
@@ -206,6 +206,9 @@ def test_compiler_with_add_args():
                         openmp=True, syntax_only=True)
 
 
+# ============================================================================
+# Test version number handling
+# ============================================================================
 def test_get_version_string():
     '''Tests the get_version_string() method.
     '''
@@ -367,6 +370,8 @@ def test_get_version_bad_result_is_not_cached():
 
 
 # ============================================================================
+# gcc
+# ============================================================================
 def test_gcc():
     '''Tests the gcc class.'''
     gcc = Gcc()
@@ -401,6 +406,8 @@ def test_gcc_get_version_with_icc_string():
         assert "Unexpected version output format for compiler" in str(err.value)
 
 
+# ============================================================================
+# gfortran
 # ============================================================================
 def test_gfortran():
     '''Tests the gfortran class.'''
@@ -485,7 +492,8 @@ def test_gfortran_get_version_12():
 
     """)
     gfortran = Gfortran()
-    with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
+    with mock.patch.object(gfortran, "run",
+                           mock.Mock(return_value=full_output)):
         assert gfortran.get_version() == (12, 1, 0)
 
 
@@ -497,12 +505,16 @@ def test_gfortran_get_version_with_ifort_string():
 
     """)
     gfortran = Gfortran()
-    with mock.patch.object(gfortran, "run", mock.Mock(return_value=full_output)):
+    with mock.patch.object(gfortran, "run",
+                           mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             gfortran.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
 
 
+# ============================================================================
+# icc
 # ============================================================================
 def test_icc():
     '''Tests the icc class.'''
@@ -535,9 +547,12 @@ def test_icc_get_version_with_gcc_string():
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icc.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
 
 
+# ============================================================================
+# ifort
 # ============================================================================
 def test_ifort():
     '''Tests the ifort class.'''
@@ -607,7 +622,8 @@ def test_ifort_get_version_with_icc_string():
     with mock.patch.object(ifort, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             ifort.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
 
 
 @pytest.mark.parametrize("version", ["5.15f.2",
@@ -626,4 +642,285 @@ def test_ifort_get_version_invalid_version(version):
     with mock.patch.object(icc, "run", mock.Mock(return_value=full_output)):
         with pytest.raises(RuntimeError) as err:
             icc.get_version()
-        assert "Unexpected version output format for compiler" in str(err.value)
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# icx
+# ============================================================================
+def test_icx():
+    '''Tests the icx class.'''
+    icx = Icx()
+    assert icx.name == "icx"
+    assert isinstance(icx, CCompiler)
+    assert icx.category == Category.C_COMPILER
+    assert not icx.mpi
+
+
+def test_icx_get_version_2023():
+    '''Test icx 2023.0.0 version detection.'''
+    full_output = dedent("""
+Intel(R) oneAPI DPC++/C++ Compiler 2023.0.0 (2023.0.0.20221201)
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /opt/intel/oneapi/compiler/2023.0.0/linux/bin-llvm
+Configuration file: /opt/intel/oneapi/compiler/2023.0.0/linux/bin-llvm/"""
+                         """../bin/icx.cfg
+
+    """)
+    icx = Icx()
+    with mock.patch.object(icx, "run", mock.Mock(return_value=full_output)):
+        assert icx.get_version() == (2023, 0, 0)
+
+
+def test_icx_get_version_with_icc_string():
+    '''Tests the icx class with an icc version output.'''
+    full_output = dedent("""
+        icc (ICC) 2021.10.0 20230609
+        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+
+    """)
+    icx = Icx()
+    with mock.patch.object(icx, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            icx.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# ifx
+# ============================================================================
+def test_ifx():
+    '''Tests the ifx class.'''
+    ifx = Ifx()
+    assert ifx.name == "ifx"
+    assert isinstance(ifx, FortranCompiler)
+    assert ifx.category == Category.FORTRAN_COMPILER
+    assert not ifx.mpi
+
+
+def test_ifx_get_version_2023():
+    '''Test ifx 2023.0.0 version detection.'''
+    full_output = dedent("""
+ifx (IFORT) 2023.0.0 20221201
+Copyright (C) 1985-2022 Intel Corporation. All rights reserved.
+
+    """)
+    ifx = Ifx()
+    with mock.patch.object(ifx, "run", mock.Mock(return_value=full_output)):
+        assert ifx.get_version() == (2023, 0, 0)
+
+
+def test_ifx_get_version_with_ifort_string():
+    '''Tests the ifx class with an icc version output.'''
+    full_output = dedent("""
+        ifort (IFORT) 19.0.0.117 20180804
+        Copyright (C) 1985-2018 Intel Corporation.  All rights reserved.
+
+    """)
+    ifx = Ifx()
+    with mock.patch.object(ifx, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            ifx.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# nvc
+# ============================================================================
+def test_nvc():
+    '''Tests the nvc class.'''
+    nvc = Nvc()
+    assert nvc.name == "nvc"
+    assert isinstance(nvc, CCompiler)
+    assert nvc.category == Category.C_COMPILER
+    assert not nvc.mpi
+
+
+def test_nvc_get_version_23_5_0():
+    '''Test nvc 23.5.0 version detection.'''
+    full_output = dedent("""
+
+nvc 23.5-0 64-bit target on x86-64 Linux -tp icelake-server
+NVIDIA Compilers and Tools
+Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
+    """)
+    nvc = Nvc()
+    with mock.patch.object(nvc, "run", mock.Mock(return_value=full_output)):
+        assert nvc.get_version() == (23, 5, 0)
+
+
+def test_nvc_get_version_with_icc_string():
+    '''Tests the nvc class with an icc version output.'''
+    full_output = dedent("""
+        icc (ICC) 2021.10.0 20230609
+        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+
+    """)
+    nvc = Nvc()
+    with mock.patch.object(nvc, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            nvc.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# nvfortran
+# ============================================================================
+def test_nvfortran():
+    '''Tests the nvfortran class.'''
+    nvfortran = Nvfortran()
+    assert nvfortran.name == "nvfortran"
+    assert isinstance(nvfortran, FortranCompiler)
+    assert nvfortran.category == Category.FORTRAN_COMPILER
+    assert not nvfortran.mpi
+
+
+def test_nvfortran_get_version_23_5_0():
+    '''Test nvfortran 23.5 version detection.'''
+    full_output = dedent("""
+
+nvfortran 23.5-0 64-bit target on x86-64 Linux -tp icelake-server
+NVIDIA Compilers and Tools
+Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
+    """)
+    nvfortran = Nvfortran()
+    with mock.patch.object(nvfortran, "run",
+                           mock.Mock(return_value=full_output)):
+        assert nvfortran.get_version() == (23, 5, 0)
+
+
+def test_nvfortran_get_version_with_ifort_string():
+    '''Tests the nvfortran class with an icc version output.'''
+    full_output = dedent("""
+        ifort (IFORT) 19.0.0.117 20180804
+        Copyright (C) 1985-2018 Intel Corporation.  All rights reserved.
+
+    """)
+    nvfortran = Nvfortran()
+    with mock.patch.object(nvfortran, "run",
+                           mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            nvfortran.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# Craycc
+# ============================================================================
+def test_craycc():
+    '''Tests the Craycc class.'''
+    craycc = Craycc()
+    assert craycc.name == "craycc-cc"
+    assert isinstance(craycc, CCompiler)
+    assert craycc.category == Category.C_COMPILER
+    assert craycc.mpi
+
+
+def test_craycc_get_version_8_7_0():
+    '''Test craycc .23.5 version detection.'''
+    full_output = dedent("""
+Cray C : Version 8.7.0  Tue Jul 23, 2024  07:39:46
+
+    """)
+    craycc = Craycc()
+    with mock.patch.object(craycc, "run", mock.Mock(return_value=full_output)):
+        assert craycc.get_version() == (8, 7, 0)
+
+
+def test_craycc_get_version_2023():
+    '''Test craycc .23.5 version detection.'''
+    full_output = dedent("""
+Cray clang version 15.0.1  (66f7391d6a03cf932f321b9f6b1d8612ef5f362c)
+
+Target: x86_64-unknown-linux-gnu
+
+Thread model: posix
+
+InstalledDir: /opt/cray/pe/cce/15.0.1/cce-clang/x86_64/share/../bin
+
+Found candidate GCC installation: /opt/gcc/10.3.0/snos/lib/gcc/x86_64-"""
+                         """suse-linux/10.3.0
+
+Selected GCC installation: /opt/gcc/10.3.0/snos/lib/gcc/x86_64-suse-"""
+                         """linux/10.3.0
+
+Candidate multilib: .;@m64
+
+Selected multilib: .;@m64
+
+OFFICIAL
+    """)
+    craycc = Craycc()
+    with mock.patch.object(craycc, "run", mock.Mock(return_value=full_output)):
+        assert craycc.get_version() == (15, 0, 1)
+
+
+def test_craycc_get_version_with_icc_string():
+    '''Tests the Craycc class with an icc version output.'''
+    full_output = dedent("""
+        icc (ICC) 2021.10.0 20230609
+        Copyright (C) 1985-2023 Intel Corporation.  All rights reserved.
+
+    """)
+    craycc = Craycc()
+    with mock.patch.object(craycc, "run", mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            craycc.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))
+
+
+# ============================================================================
+# Crayftn
+# ============================================================================
+def test_crayftn():
+    '''Tests the Crayftn class.'''
+    crayftn = Crayftn()
+    assert crayftn.name == "crayftn-ftn"
+    assert isinstance(crayftn, FortranCompiler)
+    assert crayftn.category == Category.FORTRAN_COMPILER
+    assert crayftn.mpi
+
+
+def test_crayftn_get_version_8_7_0():
+    '''Test crayftn .23.5 version detection.'''
+    full_output = dedent("""
+Cray Fortran : Version 8.7.0  Tue Jul 23, 2024  07:39:25
+    """)
+    crayftn = Crayftn()
+    with mock.patch.object(crayftn, "run",
+                           mock.Mock(return_value=full_output)):
+        assert crayftn.get_version() == (8, 7, 0)
+
+
+def test_crayftn_get_version_15_0_1():
+    '''Test Crayftn 15.0.1 version detection.'''
+    full_output = dedent("""
+Cray Fortran : Version 15.0.1  Tue Jul 23, 2024  07:39:25
+    """)
+    crayftn = Crayftn()
+    with mock.patch.object(crayftn, "run",
+                           mock.Mock(return_value=full_output)):
+        assert crayftn.get_version() == (15, 0, 1)
+
+
+def test_crayftn_get_version_with_ifort_string():
+    '''Tests the crayftn class with an icc version output.'''
+    full_output = dedent("""
+        ifort (IFORT) 19.0.0.117 20180804
+        Copyright (C) 1985-2018 Intel Corporation.  All rights reserved.
+
+    """)
+    crayftn = Crayftn()
+    with mock.patch.object(crayftn, "run",
+                           mock.Mock(return_value=full_output)):
+        with pytest.raises(RuntimeError) as err:
+            crayftn.get_version()
+        assert ("Unexpected version output format for compiler"
+                in str(err.value))

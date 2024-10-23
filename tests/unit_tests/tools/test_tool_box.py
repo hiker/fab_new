@@ -43,9 +43,11 @@ def test_tool_box_add_tool_replacement():
     warning can be disabled.'''
 
     tb = ToolBox()
-    mock_compiler1 = CCompiler("mock_c_compiler1", "mock_exec1", "suite")
+    mock_compiler1 = CCompiler("mock_c_compiler1", "mock_exec1", "suite",
+                               version_regex="something")
     mock_compiler1._is_available = True
-    mock_compiler2 = CCompiler("mock_c_compiler2", "mock_exec2", "suite")
+    mock_compiler2 = CCompiler("mock_c_compiler2", "mock_exec2", "suite",
+                               version_regex="something")
     mock_compiler2._is_available = True
 
     tb.add_tool(mock_compiler1)

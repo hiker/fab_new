@@ -36,12 +36,9 @@ class CompilerWrapper(Compiler):
             name=name, exec_name=exec_name,
             category=self._compiler.category,
             suite=self._compiler.suite,
+            version_regex=self._compiler._version_regex,
             mpi=mpi,
             availability_option=self._compiler.availability_option)
-        # We need to have the right version to parse the version output
-        # So we set this function based on the function that the
-        # wrapped compiler uses:
-        setattr(self, "parse_version_output", compiler.parse_version_output)
 
     def __str__(self):
         return f"{type(self).__name__}({self._compiler.name})"
@@ -196,3 +193,27 @@ class Mpicc(CompilerWrapper):
     def __init__(self, compiler: Compiler):
         super().__init__(name=f"mpicc-{compiler.name}",
                          exec_name="mpicc", compiler=compiler, mpi=True)
+
+
+# ============================================================================
+class CrayFtn(CompilerWrapper):
+    '''Class for the Cray Fortran compiler wrapper.
+
+    :param compiler: the compiler that the ftn wrapper will use.
+    '''
+
+    def __init__(self, compiler: Compiler):
+        super().__init__(name=f"crayftn-{compiler.name}",
+                         exec_name="ftn", compiler=compiler, mpi=True)
+
+
+# ============================================================================
+class CrayCc(CompilerWrapper):
+    '''Class for the Cray C compiler wrapper
+
+    :param compiler: the compiler that the mpicc wrapper will use.
+    '''
+
+    def __init__(self, compiler: Compiler):
+        super().__init__(name=f"craycc-{compiler.name}",
+                         exec_name="cc", compiler=compiler, mpi=True)
